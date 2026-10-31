@@ -1,0 +1,8 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    { "label": "PartyUp: live preview", "type": "shell", "command": "npm run dev -- --web", "isBackground": true, "problemMatcher": [] },
+    { "label": "PartyUp: typecheck", "type": "shell", "command": "npm run typecheck", "problemMatcher": "$tsc" },
+    { "label": "PartyUp: server tests", "type": "shell", "command": "npm test", "problemMatcher": [] }
+  ]
+}
