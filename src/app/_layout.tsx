@@ -7,6 +7,8 @@ import { ActivityIndicator, View, Text } from "react-native";
 import { Provider } from "../store";
 export default function Layout() {
   const [loaded, error] = useFonts({
+    "Pretendard-Light": require("../../assets/fonts/Pretendard-Light.otf"),
+    "Pretendard-Regular": require("../../assets/fonts/Pretendard-Regular.otf"),
     "Pretendard-Bold": require("../../assets/fonts/Pretendard-Bold.otf"),
     "Pretendard-SemiBold": require("../../assets/fonts/Pretendard-SemiBold.otf"),
     "Pretendard-Medium": require("../../assets/fonts/Pretendard-Medium.otf"),

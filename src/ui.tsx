@@ -197,15 +197,17 @@ export function Avatar({
 export function Icon({
   name,
   size = 28,
+  height = size,
 }: {
   name: keyof typeof iconSources;
   size?: number;
+  height?: number;
 }) {
   return (
     <SvgUri
       uri={Asset.fromModule(iconSources[name]).uri}
       width={size}
-      height={size}
+      height={height}
     />
   );
 }

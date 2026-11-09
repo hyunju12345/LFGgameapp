@@ -33,7 +33,7 @@ export default function PartyDetail() {
   const joined = p.members.some((m) => m.id === data.user.id);
   async function join() {
     if (demo) {
-      router.push("/auth");
+      router.push({ pathname: "/preview-conversation", params: { id: "party" } });
       return;
     }
     setBusy(true);

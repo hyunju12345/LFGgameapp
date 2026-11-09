@@ -20,7 +20,7 @@ export default function Games() {
             key={g.id}
             style={{ width: "47%", gap: 8 }}
             onPress={() =>
-              router.push({ pathname: "/game", params: { id: g.id } })
+              router.push({ pathname: "/create-party", params: { game: g.id } })
             }
           >
             <Image
