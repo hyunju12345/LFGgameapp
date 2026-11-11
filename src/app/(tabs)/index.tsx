@@ -8,7 +8,9 @@ import { SvgUri } from "react-native-svg";
 import { Avatar, Empty, ErrorText, Icon, colors, styles } from "../../ui";
 import { PreviewStatusBar } from "../../figma-screens";
 import { useStore } from "../../store";
-import { gameById, games } from "../../data";
+import { ActivePartyCard } from "../../active-party-card";
+import { useGameLibrary } from "../../game-library";
+import { gameById } from "../../data";
 
 const homePhotos: Record<string, ImageSourcePropType> = {
   May: require("../../../assets/figma/8177c.png"), Jessica: require("../../../assets/figma/548c0.png"),
@@ -31,12 +33,13 @@ function SectionHeading({ title, count, onPress }: { title: string; count?: numb
 }
 export default function Home() {
   const { data, demo, loading, error, refresh, request } = useStore();
+  const { games } = useGameLibrary();
   const [pending, setPending] = useState("");
   const [addError, setAddError] = useState("");
   const friends = data.users.filter(p => p.friendStatus === "accepted" && p.online);
   const cards = demo && friends[2] ? [...friends, friends[2], friends[2]] : friends;
   const recommended = data.users.filter(p => p.friendStatus !== "accepted")
-    .sort((a, b) => (b.match ?? 0) - (a.match ?? 0)).slice(0, 5);
+    .sort((a, b) => (b.match ?? 0) - (a.match ?? 0)).slice(0, 3);
   const mine = data.parties.filter(p => p.members.some(m => m.id === data.user.id));
   async function add(id: string) {
     if (demo) { router.push("/auth"); return; }
@@ -62,6 +65,7 @@ export default function Home() {
         <View style={home.divider}><SvgUri uri={Asset.fromModule(divider).uri} width={1} height={370} style={{ position: "absolute", left: 184.5, top: -185, transform: [{ rotate: "90deg" }] }} /></View>
       </View>
       <View style={home.main}>
+        <ActivePartyCard party={mine.find(p => p.id === data.currentPartyId) || mine[0]} demo={demo} />
         {loading && <ActivityIndicator color={colors.brand} />}
         {Boolean(error) && <Pressable onPress={() => void refresh()}><ErrorText message={error + " Tap to retry."} /></Pressable>}
         <View style={home.section}>
@@ -83,22 +87,7 @@ export default function Home() {
             </ScrollView>}
         </View>
         <View style={home.section}>
-          <SectionHeading title="Pick a game to play" onPress={() => router.push("/games")} />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 16 }}>
-            {(demo ? [...games.slice(0, 3), games[2]] : games).map((game, index) => {
-              const count = friends.filter(p => p.game === game.id).length;
-              return <Pressable accessibilityRole="button" accessibilityLabel={`Play ${game.name}`} key={`${game.id}-${index}`} style={{ width: 112, gap: 4 }}
-                onPress={() => router.push({ pathname: "/create-party", params: { game: game.id } })}>
-                <View style={home.gameImage}><Image source={game.image} style={{ width: 112, height: 112 }} resizeMode="cover" />
-                  <LinearGradient colors={["rgba(102,102,102,0)", "rgba(0,0,0,0.5)"]} style={StyleSheet.absoluteFill} /></View>
-                <Text numberOfLines={1} style={home.gameName}>{game.id === "overwatch" ? "OVERWATCH" : game.name}</Text>
-                <Text style={home.playing}>{count} {count === 1 ? "friend" : "friends"} playing</Text>
-              </Pressable>;
-            })}
-          </ScrollView>
-        </View>
-        <View style={home.section}>
-          <SectionHeading title="Recommended teammates" onPress={() => router.push("/friends")} />
+          <SectionHeading title="Suggestion" onPress={() => router.push("/friends")} />
           <ErrorText message={addError} />
           <View style={{ gap: 12 }}>
             {recommended.map(p => <View key={p.id} style={home.recommendation}>
@@ -116,6 +105,21 @@ export default function Home() {
             </View>)}
           </View>
         </View>
+        <View style={home.section}>
+          <SectionHeading title="Pick a game to play" onPress={() => router.push("/games")} />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 16 }}>
+            {games.map((game, index) => {
+              const count = friends.filter(p => p.game === game.id).length;
+              return <Pressable accessibilityRole="button" accessibilityLabel={`Play ${game.name}`} key={`${game.id}-${index}`} style={{ width: 112, gap: 4 }}
+                onPress={() => router.push({ pathname: "/create-party", params: { game: game.id } })}>
+                <View style={home.gameImage}><Image source={game.image} style={{ width: 112, height: 112 }} resizeMode="cover" />
+                  <LinearGradient colors={["rgba(102,102,102,0)", "rgba(0,0,0,0.5)"]} style={StyleSheet.absoluteFill} /></View>
+                <Text numberOfLines={1} style={home.gameName}>{game.id === "overwatch" ? "OVERWATCH" : game.name}</Text>
+                <Text style={home.playing}>{count} {count === 1 ? "friend" : "friends"} playing</Text>
+              </Pressable>;
+            })}
+          </ScrollView>
+        </View>
         {!demo && mine.length > 0 && <View style={home.section}>
           <SectionHeading title="Your parties" onPress={() => router.push("/games")} />
           {mine.map(p => <Pressable key={p.id} style={styles.card} onPress={() => router.push(`/party/${p.id}`)}><Text style={styles.label}>{p.name}</Text><Text style={styles.muted}>{gameById(p.game).name} · {p.members.length}/{p.capacity}</Text></Pressable>)}
@@ -129,8 +133,8 @@ const home = StyleSheet.create({
   header: { paddingHorizontal: 20, gap: 16, alignItems: "center" },
   bell: { width: 32, height: 32, alignItems: "center", justifyContent: "center" },
   divider: { height: 0, width: 370, alignSelf: "center" },
-  main: { paddingHorizontal: 20, gap: 32 },
-  section: { gap: 24 },
+  main: { paddingHorizontal: 20, gap: 24 },
+  section: { gap: 16 },
   heading: { fontFamily: "Pretendard-SemiBold", color: "white", fontSize: 16, lineHeight: 19 },
   link: { fontFamily: "Pretendard-SemiBold", color: colors.brand, fontSize: 12, lineHeight: 14 },
   friendCard: { width: 104, height: 112, padding: 12, borderRadius: 8, backgroundColor: colors.card, gap: 8, justifyContent: "center", alignItems: "center" },

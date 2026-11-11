@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Image, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
+import { RecommendedProfile } from "../../../recommended-profile";
 import { gameById } from "../../../data";
 import { DesignHeader, DesignIcon, PreviewStatusBar, GameRow, Portrait, design, friendPhotos, portraits } from "../../../figma-screens";
 import { useStore } from "../../../store";
@@ -19,6 +20,7 @@ export default function FriendProfile() {
   const game = gameById(party?.game ?? player?.game);
   const isMay = demo && player?.name === "May";
 
+  if (player && player.friendStatus !== "accepted" && id !== "lia") return <RecommendedProfile player={player} />;
   return (
     <SafeAreaView edges={["top", "bottom"]} style={styles.page}>
       <PreviewStatusBar />

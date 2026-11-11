@@ -9,7 +9,7 @@ import React, {
 import { AppState, Platform } from "react-native";
 import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
-import { Bootstrap, preview } from "./data";
+import { Bootstrap, preview, registerGames } from "./data";
 
 const host = Constants.expoConfig?.hostUri?.split(":")[0] || "localhost";
 export const apiUrl = process.env.EXPO_PUBLIC_API_URL || `http://${host}:8787`;
@@ -92,6 +92,7 @@ export function Provider({ children }: { children: React.ReactNode }) {
     const activeToken = tokenRef.current;
     try {
       const next = await request<Bootstrap>("/bootstrap");
+      if (next.gameCatalog) registerGames(next.gameCatalog);
       if (alive.current && activeToken === tokenRef.current) {
         setData(next);
         setError("");
@@ -150,7 +151,7 @@ export function Provider({ children }: { children: React.ReactNode }) {
     <Context.Provider
       value={{
         data,
-        demo: data === preview,
+        demo: data.user.id === "preview",
         loading,
         error,
         request,

@@ -1,8 +1,10 @@
+import { useSyncExternalStore } from "react";
 export const previewConversations = [
-  { id: "jessica", name: "Jessica", preview: "Let’s play league", time: "32 min", unread: 12, image: require("../assets/figma/485dc.png") },
-  { id: "team", name: "Team Parsons", count: 6, preview: "this week homework...", time: "3 hours", unread: 30, image: require("../assets/figma/45c8e.png") },
-  { id: "may", name: "May", preview: "You wanna have burger?", time: "1day ago", unread: 0, image: require("../assets/figma/ccbff.png") },
-  { id: "lemon", name: "Lemon", preview: "Hi", time: "3days ago", unread: 0, image: require("../assets/figma/5f269.png") },
+  { id: "party", name: "Team Korea", count: 5, preview: "Let’s queue up!", time: "Now", unread: 0, image: require("../assets/figma/b64d6.png") },
+  { id: "jessica", name: "Jessica", preview: "Are you up for a game?", time: "32 min", unread: 12, image: require("../assets/figma/485dc.png") },
+  { id: "team", name: "Team Parsons", count: 6, preview: "Anyone playing tonight?", time: "3 hours", unread: 30, image: require("../assets/figma/45c8e.png") },
+  { id: "may", name: "May", preview: "One more round after dinner?", time: "1 day ago", unread: 0, image: require("../assets/figma/ccbff.png") },
+  { id: "lemon", name: "Lemon", preview: "Want to duo this weekend?", time: "3 days ago", unread: 0, image: require("../assets/figma/5f269.png") },
 ];
 export const teamMessages: {
   body: string;
@@ -11,16 +13,27 @@ export const teamMessages: {
   image?: import("react-native").ImageSourcePropType;
   date?: string;
 }[] = [
-  { body: "우리 내일", time: "오전 11:30" },
-  { body: "수정 해야됩니다", time: "오전 11:30" },
-  { body: "룸메 네명이다", time: "5:00", name: "Jessica", image: require("../assets/figma/c4138.png") },
-  { body: "앞으로 우리집은", time: "5:00", name: "Jessica" },
-  { body: "인정~", time: "6:29", name: "Ian", image: require("../assets/figma/750be.png") },
-  { body: "날짜를", time: "6:30", name: "Ian" },
-  { body: "이건 아이메세지 버전입니다", time: "8:00" },
-  { body: "수정은 해야하지만..", time: "8:00" },
-  { body: "역시 편한 피그마 플러그인", time: "7:20", date: "Tue Oct 27" },
-  { body: "인정~", time: "7:43", name: "Marin", image: require("../assets/figma/7c68a.png") },
-  { body: "날짜를", time: "7:43", name: "Marin" },
-  { body: "빼먹어버렸네용", time: "7:20" },
+  { body: "Anyone free tonight?", time: "11:30 AM" },
+  { body: "Let’s play a few rounds.", time: "11:30 AM" },
+  { body: "I’m in! Give me five.", time: "5:00", name: "Jessica", image: require("../assets/figma/c4138.png") },
+  { body: "Just finishing dinner.", time: "5:00", name: "Jessica" },
+  { body: "Sounds good!", time: "6:29", name: "Ian", image: require("../assets/figma/750be.png") },
+  { body: "I’ll join your lobby.", time: "6:30", name: "Ian" },
+  { body: "Nice, we have a full squad.", time: "8:00" },
+  { body: "Want to keep it casual?", time: "8:00" },
+  { body: "Same time tomorrow?", time: "7:20", date: "Tue Oct 27" },
+  { body: "Absolutely!", time: "7:43", name: "Marin", image: require("../assets/figma/7c68a.png") },
+  { body: "I can play after seven.", time: "7:43", name: "Marin" },
+  { body: "Let’s queue up!", time: "7:20" },
 ];
+
+type SentPreviewMessage = { body: string; time: string };
+let sentMessages: Record<string, SentPreviewMessage[]> = {};
+const sentListeners = new Set<() => void>();
+const subscribeSent = (listener: () => void) => { sentListeners.add(listener); return () => { sentListeners.delete(listener); }; };
+const getSent = () => sentMessages;
+export function usePreviewMessages() { return useSyncExternalStore(subscribeSent, getSent, getSent); }
+export function sendPreviewMessage(id: string, body: string) {
+  sentMessages = { ...sentMessages, [id]: [...(sentMessages[id] || []), { body, time: "Now" }] };
+  sentListeners.forEach(listener => listener());
+}

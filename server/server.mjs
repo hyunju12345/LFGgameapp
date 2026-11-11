@@ -1,4 +1,5 @@
 import http from "node:http";
+import { searchSteam, steamGame } from "./steam.mjs";
 import { DatabaseSync } from "node:sqlite";
 import {
   randomBytes,
@@ -22,6 +23,18 @@ CREATE TABLE IF NOT EXISTS parties(id TEXT PRIMARY KEY,owner TEXT NOT NULL REFER
 CREATE TABLE IF NOT EXISTS members(party_id TEXT REFERENCES parties(id) ON DELETE CASCADE,user_id TEXT REFERENCES users(id),PRIMARY KEY(party_id,user_id));
 CREATE TABLE IF NOT EXISTS messages(id TEXT PRIMARY KEY,party_id TEXT REFERENCES parties(id) ON DELETE CASCADE,user_id TEXT REFERENCES users(id),body TEXT NOT NULL,created INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS friends(sender TEXT REFERENCES users(id),recipient TEXT REFERENCES users(id),status TEXT NOT NULL,PRIMARY KEY(sender,recipient));`);
+db.exec(`CREATE TABLE IF NOT EXISTS game_catalog(id TEXT PRIMARY KEY, data TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS game_library(user_id TEXT REFERENCES users(id),game_id TEXT NOT NULL,added INTEGER NOT NULL,PRIMARY KEY(user_id,game_id));
+CREATE TABLE IF NOT EXISTS game_library_initialized(user_id TEXT PRIMARY KEY REFERENCES users(id));`);
+db.exec(`CREATE TABLE IF NOT EXISTS party_invites(party_id TEXT REFERENCES parties(id) ON DELETE CASCADE,user_id TEXT REFERENCES users(id),PRIMARY KEY(party_id,user_id));`);
+db.exec(`CREATE TABLE IF NOT EXISTS current_parties(user_id TEXT PRIMARY KEY REFERENCES users(id),party_id TEXT REFERENCES parties(id) ON DELETE CASCADE);`);
+const libraryDefaults = ["lol", "steam:477160", "steam:1262540", "steam:467360"];
+const catalogueDefaults = [
+ {id:"steam:477160",steamId:477160,name:"Human: Fall Flat",modes:["Default"]},
+ {id:"steam:1262540",steamId:1262540,name:"Need for speed",modes:["Default"]},
+ {id:"steam:467360",steamId:467360,name:"Off-peak",modes:["Default"]},
+];
+for (const game of catalogueDefaults) db.prepare("INSERT OR IGNORE INTO game_catalog VALUES(?,?)").run(game.id,JSON.stringify(game));
 const games = new Set([
   "lol",
   "valorant",
@@ -45,9 +58,18 @@ const text = (value, min, max, label) => {
     fail(400, `${label}: ${min}–${max} characters required.`);
   return value.trim();
 };
+if (!all("PRAGMA table_info(users)").some(column => column.name === "friend_code")) db.exec("ALTER TABLE users ADD COLUMN friend_code TEXT");
+db.exec("CREATE UNIQUE INDEX IF NOT EXISTS users_friend_code ON users(friend_code)");
+function newFriendCode() {
+  let code;
+  do { code = randomBytes(4).toString("hex").toUpperCase(); } while (one("SELECT 1 FROM users WHERE friend_code=?", code));
+  return code;
+}
+for (const user of all("SELECT id FROM users WHERE friend_code IS NULL")) run("UPDATE users SET friend_code=? WHERE id=?", newFriendCode(), user.id);
 const profile = (u) => ({
   id: u.id,
   name: u.name,
+  friendCode: u.friend_code,
   game: u.game,
   style: u.style,
   rank: u.rank,
@@ -101,10 +123,26 @@ function transaction(fn) {
     throw e;
   }
 }
-function dispatch(req, b, url) {
+async function dispatch(req, b, url) {
   const route = url.pathname;
   const method = req.method;
   if (route === "/health") return { ok: true };
+  if (route === "/games/search" && method === "GET") {
+    throttle(req.socket.remoteAddress + ":steam", 90);
+    const query = text(url.searchParams.get("q") || "", 0, 100, "Search");
+    const start = Number(url.searchParams.get("start") || 0);
+    if (!Number.isInteger(start) || start < 0 || start > 1000000) fail(400, "Invalid search page.");
+    return searchSteam(query, start);
+  }
+  const gameRoute = route.match(/^\/games\/(steam:\d+)$/);
+  if (gameRoute && method === "GET") {
+    throttle(req.socket.remoteAddress + ":steam", 90);
+    const saved = one("SELECT data FROM game_catalog WHERE id=?", gameRoute[1]);
+    if (saved) return JSON.parse(saved.data);
+    const game = await steamGame(gameRoute[1]);
+    run("INSERT OR REPLACE INTO game_catalog VALUES(?,?)", game.id, JSON.stringify(game));
+    return game;
+  }
   if (route === "/auth/register" || route === "/auth/login") {
     if (method !== "POST") fail(405, "Use POST.");
     throttle(req.socket.remoteAddress + route, 12);
@@ -132,6 +170,7 @@ function dispatch(req, b, url) {
         salt,
         Date.now(),
       );
+      run("UPDATE users SET friend_code=? WHERE id=?", newFriendCode(), id);
       u = one("SELECT * FROM users WHERE id=?", id);
     } else {
       const hash = scryptSync(b.password, u?.salt || "dummy-salt", 64);
@@ -156,13 +195,32 @@ function dispatch(req, b, url) {
   if (!u) fail(401, "Please sign in again.");
   throttle(u.id, 180);
   run("UPDATE users SET seen=? WHERE id=?", Date.now(), u.id);
+  if (route === "/games/library") {
+    if (!one("SELECT 1 FROM game_library_initialized WHERE user_id=?", u.id)) transaction(() => {
+      libraryDefaults.forEach((id, index) => run("INSERT OR IGNORE INTO game_library VALUES(?,?,?)", u.id, id, index));
+      run("INSERT INTO game_library_initialized VALUES(?)", u.id);
+    });
+    if (method === "POST") {
+      if (!Array.isArray(b.ids) || b.ids.length < 1 || b.ids.length > 30 || b.ids.some(id => typeof id !== "string")) fail(400, "Choose 1–30 games.");
+      const ids = [...new Set(b.ids)];
+      const resolved = await Promise.all(ids.filter(id => !games.has(id)).map(async id => {
+        const saved = one("SELECT data FROM game_catalog WHERE id=?", id);
+        return saved ? JSON.parse(saved.data) : steamGame(id);
+      }));
+      transaction(() => {
+        resolved.forEach(game => run("INSERT OR REPLACE INTO game_catalog VALUES(?,?)", game.id, JSON.stringify(game)));
+        ids.forEach((id, index) => run("INSERT OR IGNORE INTO game_library VALUES(?,?,?)", u.id, id, Date.now() + index));
+      });
+    } else if (method !== "GET") fail(405, "Unsupported method.");
+    return all("SELECT l.game_id,c.data FROM game_library l LEFT JOIN game_catalog c ON c.id=l.game_id WHERE l.user_id=? ORDER BY l.added,l.game_id", u.id).map(row => row.data ? JSON.parse(row.data) : {id: row.game_id});
+  }
   if (route === "/auth/logout" && method === "POST") {
     run("DELETE FROM sessions WHERE token=?", token);
     return { ok: true };
   }
   if (route === "/profile" && method === "PATCH") {
     const name = text(b.name, 2, 30, "Name");
-    if (!games.has(b.game)) fail(400, "Choose a game.");
+    if (!games.has(b.game) && !one("SELECT 1 FROM game_catalog WHERE id=?", b.game)) fail(400, "Choose a game from your library.");
     const style = text(b.style, 2, 30, "Playstyle");
     const rank = text(b.rank, 2, 30, "Rank");
     run(
@@ -209,11 +267,24 @@ function dispatch(req, b, url) {
       };
     });
     const parties = all(
-      "SELECT p.* FROM parties p WHERE p.is_open=1 OR p.owner=? OR EXISTS(SELECT 1 FROM members m WHERE m.party_id=p.id AND m.user_id=?)",
+      "SELECT p.* FROM parties p WHERE p.is_open=1 OR p.owner=? OR EXISTS(SELECT 1 FROM members m WHERE m.party_id=p.id AND m.user_id=?) OR EXISTS(SELECT 1 FROM party_invites i WHERE i.party_id=p.id AND i.user_id=?)",
+      u.id,
       u.id,
       u.id,
     ).map(partyView);
-    return { user: profile({ ...u, seen: Date.now() }), users, parties };
+    const current = one("SELECT c.party_id FROM current_parties c JOIN members m ON m.party_id=c.party_id AND m.user_id=c.user_id WHERE c.user_id=?", u.id)
+      || one("SELECT party_id FROM members WHERE user_id=? ORDER BY rowid DESC LIMIT 1", u.id);
+    return { user: profile({ ...u, seen: Date.now() }), users, parties, currentPartyId: current?.party_id || null, gameCatalog: all("SELECT data FROM game_catalog").map(row => JSON.parse(row.data)) };
+  }
+  if (route === "/friends/lookup" && method === "GET") {
+    throttle(u.id + ":friend-code", 30);
+    const code = (url.searchParams.get("code") || "").replace(/[\s#-]/g, "").toUpperCase();
+    if (!/^[A-F0-9]{8}$/.test(code)) fail(400, "Enter an 8-character friend code.");
+    const target = one("SELECT * FROM users WHERE friend_code=?", code);
+    if (!target) fail(404, "No player found with this friend code.");
+    if (target.id === u.id) fail(400, "That is your own friend code.");
+    const relationship = one("SELECT * FROM friends WHERE (sender=? AND recipient=?) OR (sender=? AND recipient=?)", u.id, target.id, target.id, u.id);
+    return { ...profile(target), friendStatus: relationship?.status || null, incoming: relationship?.recipient === u.id };
   }
   if (route === "/friends" && method === "POST") {
     const target = one("SELECT * FROM users WHERE id=?", b.userId);
@@ -239,16 +310,18 @@ function dispatch(req, b, url) {
   }
   if (route === "/parties" && method === "POST") {
     const name = text(b.name, 2, 50, "Party name");
-    if (!games.has(b.game)) fail(400, "Choose a game.");
+    if (!games.has(b.game) && !one("SELECT 1 FROM game_catalog WHERE id=?", b.game)) fail(400, "Choose a game from your library.");
     const mode = text(b.mode, 2, 50, "Game mode");
-    if (!Number.isInteger(b.capacity) || b.capacity < 2 || b.capacity > 10)
-      fail(400, "Party size must be 2–10.");
+    if (!Number.isInteger(b.capacity) || b.capacity < 1 || b.capacity > 10)
+      fail(400, "Party size must be 1–10.");
     if (
       !Array.isArray(b.tags) ||
       b.tags.length > 5 ||
       b.tags.some((t) => typeof t !== "string" || t.length > 30)
     )
       fail(400, "Choose up to 5 playstyles.");
+    const invitees = b.invitees ?? [];
+    if (!Array.isArray(invitees) || invitees.length > b.capacity - 1 || invitees.some(id => typeof id !== "string" || id === u.id || !one("SELECT 1 FROM users WHERE id=?", id)) || new Set(invitees).size !== invitees.length) fail(400, "Choose valid players within your party size.");
     const id = randomUUID();
     transaction(() => {
       run(
@@ -263,6 +336,8 @@ function dispatch(req, b, url) {
         b.is_open ? 1 : 0,
       );
       run("INSERT INTO members VALUES(?,?)", id, u.id);
+      run("INSERT OR REPLACE INTO current_parties VALUES(?,?)", u.id, id);
+      invitees.forEach(userId => run("INSERT INTO party_invites VALUES(?,?)", id, userId));
     });
     return partyView(one("SELECT * FROM parties WHERE id=?", id));
   }
@@ -272,14 +347,16 @@ function dispatch(req, b, url) {
     if (!p) fail(404, "Party no longer exists.");
     if (m[2] === "join" && method === "POST") {
       transaction(() => {
-        if (member(p.id, u.id)) return;
-        if (!p.is_open) fail(403, "This party is private.");
+        if (member(p.id, u.id)) { run("INSERT OR REPLACE INTO current_parties VALUES(?,?)", u.id, p.id); return; }
+        if (!p.is_open && !one("SELECT 1 FROM party_invites WHERE party_id=? AND user_id=?", p.id, u.id)) fail(403, "This party is private.");
         if (
           one("SELECT count(*) AS n FROM members WHERE party_id=?", p.id).n >=
           p.capacity
         )
           fail(409, "This party is full.");
         run("INSERT INTO members VALUES(?,?)", p.id, u.id);
+        run("INSERT OR REPLACE INTO current_parties VALUES(?,?)", u.id, p.id);
+        run("DELETE FROM party_invites WHERE party_id=? AND user_id=?", p.id, u.id);
       });
       return partyView(p);
     }
@@ -287,6 +364,7 @@ function dispatch(req, b, url) {
     if (m[2] === "leave" && method === "POST") {
       transaction(() => {
         run("DELETE FROM members WHERE party_id=? AND user_id=?", p.id, u.id);
+        run("DELETE FROM current_parties WHERE user_id=? AND party_id=?", u.id, p.id);
         const next = one("SELECT user_id FROM members WHERE party_id=?", p.id);
         if (!next) run("DELETE FROM parties WHERE id=?", p.id);
         else if (p.owner === u.id)
@@ -332,7 +410,7 @@ export const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, "http://localhost");
     const b = await body(req);
-    const result = dispatch(req, b, url);
+    const result = await dispatch(req, b, url);
     res.writeHead(200);
     res.end(JSON.stringify(result));
   } catch (e) {

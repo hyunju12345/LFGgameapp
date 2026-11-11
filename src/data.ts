@@ -1,4 +1,6 @@
+import type { ImageSourcePropType } from "react-native";
 export type Player = {
+  friendCode?: string;
   id: string;
   name: string;
   game: string;
@@ -28,8 +30,10 @@ export type Message = {
   body: string;
   created: number;
 };
-export type Bootstrap = { user: Player; users: Player[]; parties: Party[] };
-export const games = [
+export type CatalogueGame = { id: string; steamId?: number; name?: string; imageUrl?: string; modes?: string[] };
+export type Game = { id: string; steamId?: number; name: string; image: ImageSourcePropType; modes: string[] };
+export type Bootstrap = { user: Player; users: Player[]; parties: Party[]; currentPartyId?: string | null; gameCatalog?: CatalogueGame[] };
+export const games: Game[] = [
   {
     id: "lol",
     name: "League of Legends",
@@ -67,8 +71,34 @@ export const games = [
     modes: ["Discover", "Friends"],
   },
 ];
-export const gameById = (id?: string) =>
-  games.find((g) => g.id === id) || games[0];
+export const libraryDefaults: Game[] = [games[0],
+  { id: "steam:477160", steamId: 477160, name: "Human: Fall Flat", image: require("../assets/figma/85abf.png"), modes: ["Default"] },
+  { id: "steam:1262540", steamId: 1262540, name: "Need for speed", image: require("../assets/figma/a0440.png"), modes: ["Default"] },
+  { id: "steam:467360", steamId: 467360, name: "Off-peak", image: require("../assets/figma/ce94e.png"), modes: ["Default"] },
+];
+const catalogue = new Map<string, Game>([...games, ...libraryDefaults].map(game => [game.id, game]));
+export function registerGames(items: CatalogueGame[]): Game[] {
+  return items.map(item => {
+    const existing = catalogue.get(item.id);
+    if (existing) {
+      if (!libraryDefaults.some(game => game.id === item.id) && !games.some(game => game.id === item.id)) {
+        const updated = { ...existing, name: item.name || existing.name, image: item.imageUrl ? { uri: item.imageUrl } : existing.image, modes: item.modes?.length ? item.modes : existing.modes };
+        catalogue.set(item.id, updated);
+        return updated;
+      }
+      return existing;
+    }
+    const game: Game = { id: item.id, steamId: item.steamId, name: item.name || "Steam game", image: item.imageUrl ? { uri: item.imageUrl } : { uri: `https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${item.id.slice(6)}/header.jpg` }, modes: item.modes?.length ? item.modes : ["Default"] };
+    catalogue.set(game.id, game);
+    return game;
+  });
+}
+export const gameById = (id?: string): Game => catalogue.get(id || "lol") || (id?.startsWith("steam:") ? registerGames([{id}])[0] : games[0]);
+export function updateCatalogueGame(item: CatalogueGame): Game {
+  if (libraryDefaults.some(game => game.id === item.id)) return gameById(item.id);
+  catalogue.delete(item.id);
+  return registerGames([item])[0];
+}
 export const avatars = {
   raina: require("../assets/figma/6cacd.png"),
   may: require("../assets/figma/96ea3.png"),

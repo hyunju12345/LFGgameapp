@@ -5,7 +5,7 @@ import { Icon, colors } from "../../ui";
 const tabs = [
   { name: "index", title: "Home", icon: "homeIdle", activeIcon: "home", width: 22, height: 22.2667 },
   { name: "friends", title: "Friend", icon: "friend", activeIcon: "friendActive", width: 22, height: 20.146 },
-  { name: "games", title: "Game", icon: "game", activeIcon: "game", width: 28.391, height: 20.3355 },
+  { name: "games", title: "Game", icon: "game", activeIcon: "gameActive", width: 28.391, height: 20.3355 },
   { name: "chats", title: "Chat", icon: "chat", activeIcon: "chatActive", width: 32, height: 32 },
   { name: "profile", title: "My", icon: "my", activeIcon: "myActive", width: 24, height: 24 },
 ] as const;

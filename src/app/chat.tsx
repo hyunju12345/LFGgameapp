@@ -113,13 +113,6 @@ export default function Chat() {
               <Avatar key={m.id} name={m.name} size={28} />
             ))}
           </View>
-          <View style={[styles.card, { padding: 12 }]}>
-            <Text style={styles.label}>Voice Chat</Text>
-            <Text style={styles.muted}>
-              Voice calling is not available in this version. Use text chat to
-              coordinate.
-            </Text>
-          </View>
         </View>
         <ScrollView
           ref={scroll}
@@ -171,7 +164,7 @@ export default function Chat() {
           <View style={styles.row}>
             <Field
               accessibilityLabel="Message"
-              placeholder="메시지 입력"
+              placeholder="Type a message..."
               value={draft}
               onChangeText={setDraft}
               maxLength={2000}

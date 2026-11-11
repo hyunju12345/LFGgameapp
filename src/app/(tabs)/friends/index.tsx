@@ -3,6 +3,7 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useStore } from "../../../store";
+import { FriendCodeSearch } from "../../../friend-code-search";
 import { gameById } from "../../../data";
 import { Avatar, Empty, ErrorText, colors, styles } from "../../../ui";
 import { DesignIcon, PreviewStatusBar, design, friendPhotos } from "../../../figma-screens";
@@ -12,7 +13,7 @@ export default function Friends() {
   const [pending, setPending] = useState("");
   const [error, setError] = useState("");
   const friends = data.users.filter(p => p.friendStatus === "accepted");
-  const others = data.users.filter(p => p.friendStatus !== "accepted");
+  const others = data.users.filter(p => p.friendStatus !== "accepted" && !(p.friendStatus === "pending" && p.incoming));
   const previewDetails: Record<string, string> = {
     May: "Playing League of Legend", Jessica: "VALORANT • Lobby",
     Lemon: "Last seen 3h ago", Lia: "Last seen 3h ago",
@@ -37,7 +38,8 @@ export default function Friends() {
       <View style={[styles.header, { paddingHorizontal: 24, paddingTop: 24.8, paddingBottom: 16 }]}>
         <Text style={styles.title}>Friends</Text>
       </View>
-      <ScrollView contentContainerStyle={[design.content, { paddingTop: 32 }]}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[design.content, { paddingTop: 32 }]}>
+      <FriendCodeSearch />
       <ErrorText message={error} />
       {!rows.length && <Empty title="Find your people" detail="Send a friend request to a recommended teammate." />}
       {rows.map(p => (
