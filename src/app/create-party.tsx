@@ -12,6 +12,13 @@ import { useResolvedGame } from "../game-library";
 import { useStore } from "../store";
 import { Avatar, ErrorText, Field, GameBanner, colors, styles } from "../ui";
 
+const playstyleOptions = [
+  "Chill", "For fun", "Voice chat", "Competitive", "Every night",
+  "Beginner friendly", "No mic", "Ranked", "Casual", "Co-op",
+  "Learning", "Practice", "Questing", "Achievement hunting",
+  "Quick session", "Long session", "Weekends", "Teamwork", "No pressure", "Adults only",
+];
+
 const modeDetails: Record<string, string> = {
   "Normal Draft": "Summoner’s Rift • 5v5",
   ARAM: "Howling Abyss • 5v5",
@@ -40,6 +47,30 @@ export default function CreateParty() {
   const [menu, setMenu] = useState<"map" | "invite" | "remove-spot" | "tags" | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [customTag, setCustomTag] = useState("");
+  const [tagError, setTagError] = useState("");
+  function toggleTag(value: string) {
+    const normalized = value.trim().replace(/\s+/g, " ");
+    if (!normalized) { setTagError("Enter a playstyle."); return; }
+    if (normalized.length > 30) { setTagError("Use 30 characters or fewer."); return; }
+    const existing = tags.find(tag => tag.toLowerCase() === normalized.toLowerCase());
+    if (existing) {
+      setTags(values => values.filter(tag => tag !== existing));
+    } else {
+      if (tags.length >= 5) { setTagError("Choose up to 5 playstyles. Remove one to add another."); return; }
+      setTags(values => [...values, normalized]);
+    }
+    setTagError("");
+  }
+  function addCustomTag() {
+    const normalized = customTag.trim().replace(/\s+/g, " ");
+    if (tags.some(tag => tag.toLowerCase() === normalized.toLowerCase())) {
+      setTagError("This playstyle is already selected."); return;
+    }
+    if (!normalized || normalized.length > 30 || tags.length >= 5) { toggleTag(normalized); return; }
+    toggleTag(normalized);
+    setCustomTag("");
+  }
   const { data, demo, request, refresh } = useStore();
   const baseMembers = demo
     ? [{ id: "me", name: "Me", image: require("../../assets/figma/0ae32.png") }, { id: "ian", name: "Ian", image: require("../../assets/figma/1d51b.png") }, { id: "martin", name: "Martin", image: require("../../assets/figma/fc5bb.png") }]
@@ -120,7 +151,7 @@ export default function CreateParty() {
             <Text style={s.label}>Party’s playstyle</Text>
             <View style={s.tags}>
               {tags.map(tag => <Pressable key={tag} accessibilityRole="button" accessibilityLabel={`Remove ${tag}`} onPress={() => setTags(values => values.filter(value => value !== tag))} style={s.tag}><Text style={s.tagText}>{tag}</Text></Pressable>)}
-              <Pressable accessibilityRole="button" accessibilityLabel="Add playstyle" onPress={() => setMenu("tags")} style={s.tag}><Text style={s.tagText}>+</Text></Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel="Add playstyle" onPress={() => { setTagError(""); setMenu("tags"); }} style={s.tag}><Text style={s.tagText}>+</Text></Pressable>
             </View>
           </View>
           <View style={s.section}>
@@ -139,7 +170,21 @@ export default function CreateParty() {
           <Pressable style={s.sheet} onPress={() => {}} accessibilityViewIsModal>
             <Text style={styles.title}>{menu === "map" ? "Game map" : menu === "tags" ? "Party’s playstyle" : "Invite"}</Text>
             {menu === "map" && game.modes.map(value => <Pressable key={value} style={s.option} onPress={() => { setMode(value); setMenu(null); }}><Text style={[s.mapName, value === mode && { color: colors.brand }]}>{value}</Text><Text style={s.description}>{modeDetails[value] || game.name}</Text></Pressable>)}
-            {menu === "tags" && ["Chill", "For fun", "Voice chat", "Competitive", "Every night"].map(value => <Pressable key={value} style={s.option} onPress={() => { setTags(values => values.includes(value) ? values.filter(v => v !== value) : [...values, value]); setMenu(null); }}><Text style={[s.mapName, tags.includes(value) && { color: colors.brand }]}>{value}</Text></Pressable>)}
+            {menu === "tags" && <>
+              <Text style={s.description}>Choose up to 5 playstyles · {tags.length}/5 selected</Text>
+              <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: height * .36 }} contentContainerStyle={s.playstyleChoices}>
+                {[...playstyleOptions, ...tags.filter(tag => !playstyleOptions.includes(tag))].map(value => <Pressable key={value} accessibilityRole="checkbox" accessibilityState={{ checked: tags.includes(value) }} onPress={() => toggleTag(value)} style={[s.tag, tags.includes(value) && s.selectedTag]}><Text style={[s.tagText, tags.includes(value) && { color: colors.bg }]}>{value}</Text></Pressable>)}
+              </ScrollView>
+              <View style={{ gap: 8 }}>
+                <Text style={s.mapName}>Custom playstyle</Text>
+                <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+                  <Field accessibilityLabel="Custom playstyle" placeholder="Write your own playstyle" value={customTag} onChangeText={value => { setCustomTag(value); setTagError(""); }} maxLength={30} returnKeyType="done" onSubmitEditing={addCustomTag} style={{ flex: 1, minWidth: 0 }} />
+                  <Pressable accessibilityRole="button" onPress={addCustomTag} style={s.tag}><Text style={s.tagText}>Add</Text></Pressable>
+                </View>
+                <ErrorText message={tagError} />
+              </View>
+              <Pressable accessibilityRole="button" onPress={() => setMenu(null)} style={s.submit}><Text style={s.submitText}>Done</Text></Pressable>
+            </>}
 
           </Pressable>
         </Pressable>
@@ -188,5 +233,7 @@ const s = StyleSheet.create({
   submitText: { color: "white", fontFamily: "Pretendard-Bold", fontSize: 16 },
   overlay: { flex: 1, backgroundColor: "rgba(0,0,0,.6)", justifyContent: "flex-end", alignItems: "center" },
   sheet: { backgroundColor: colors.bg, width: "100%", maxWidth: 402, padding: 24, borderTopLeftRadius: 20, borderTopRightRadius: 20, gap: 16 },
+  playstyleChoices: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingBottom: 8 },
+  selectedTag: { backgroundColor: colors.brand },
   option: { paddingVertical: 12, gap: 4 },
 });
