@@ -1,7 +1,7 @@
 import React, { useRef, useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { getPreviewConversation, teamMessages, usePreviewMessages, sendPreviewMessage } from "../conversation-preview";
 import { DesignHeader, DesignIcon, PreviewStatusBar, design } from "../figma-screens";
@@ -34,7 +34,7 @@ export default function PreviewConversation() {
           style={party ? [StyleSheet.absoluteFill, { width: "100%", height: "100%" }] : s.teamCover} />}
         <LinearGradient colors={["rgba(0,0,0,.45)", "rgba(0,0,0,.7)"]}>
           <PreviewStatusBar />
-          <DesignHeader variant="conversation"
+          <DesignHeader variant="conversation" onBack={() => router.replace("/chats")}
             title={thread ? <>{thread.name}{count ? <Text style={{ color: colors.brand }}> {count}</Text> : null}</> : "Chat"}
             subtitle={party ? "Your party • League of Legends" : undefined}
             action={<Pressable accessibilityRole="button" accessibilityLabel="Conversation details"

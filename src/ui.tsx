@@ -320,11 +320,13 @@ export function Screen({
   children,
   scroll = true,
   back = true,
+  onBack,
 }: {
   title?: string;
   children: React.ReactNode;
   scroll?: boolean;
   back?: boolean;
+  onBack?: () => void;
 }) {
   const { error, refresh } = useStore();
   return (
@@ -335,9 +337,7 @@ export function Screen({
             <Pressable
               accessibilityLabel="Go back"
               accessibilityRole="button"
-              onPress={() =>
-                router.canGoBack() ? router.back() : router.replace("/")
-              }
+              onPress={onBack || (() => router.canGoBack() ? router.back() : router.replace("/"))}
               style={{ minWidth: 32, minHeight: 32, justifyContent: "center" }}
             >
               <Text style={{ color: "white", fontSize: 32, lineHeight: 34 }}>
