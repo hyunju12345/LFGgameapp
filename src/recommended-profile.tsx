@@ -19,16 +19,19 @@ export function RecommendedProfile({ player }: { player: Player }) {
   const scroll = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const match = Math.max(0, Math.min(100, player.match || 0));
   const [progress] = useState(() => new Animated.Value(0));
+  const [shine] = useState(() => new Animated.Value(0));
   const [displayMatch, setDisplayMatch] = useState(0);
   useFocusEffect(useCallback(() => {
     const listener = progress.addListener(({ value }) => setDisplayMatch(Math.round(value)));
     progress.setValue(0);
-    const animation = Animated.timing(progress, {
-      toValue: match, duration: 1200, easing: Easing.out(Easing.cubic), useNativeDriver: false,
-    });
+    shine.setValue(0);
+    const animation = Animated.sequence([
+      Animated.timing(progress, { toValue: match, duration: 1400, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
+      Animated.timing(shine, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
+    ]);
     animation.start();
     return () => { animation.stop(); progress.removeListener(listener); };
-  }, [progress, match]));
+  }, [progress, shine, match]));
   async function add() {
     if (demo) { router.push("/auth"); return; }
     setBusy(true); setError("");
@@ -49,8 +52,13 @@ export function RecommendedProfile({ player }: { player: Player }) {
           <Text style={s.name}>{player.name}</Text>
         </View>
         <LinearGradient colors={["#303030", "#715695"]} start={{ x: 0, y: 0 }} end={{ x: 1.1547, y: .31 }} style={s.compatibility}>
-          <View style={{ gap: 4 }}><Text style={s.name}>{displayMatch}% Match</Text><Text style={s.caption}>{demo ? "Both are in similar rank, play fun, Evening players" : player.reason || "Compare your play preferences"}</Text></View>
-          <View style={s.track} accessibilityRole="progressbar" accessibilityLabel="Player match" accessibilityValue={{ min: 0, max: 100, now: match }}><Animated.View style={[s.progress, { overflow: "hidden", width: progress.interpolate({ inputRange: [0, 100], outputRange: ["0%", "100%"] }) }]}><LinearGradient colors={["#aaacff", colors.brand]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} /></Animated.View></View>
+          <View style={{ gap: 4 }}><Animated.Text style={[s.name, { color: progress.interpolate({ inputRange: [0, 50, 100], outputRange: ["#a9baff", "#d0a8ff", "#f1ceff"] }) }]}>{displayMatch}% Match</Animated.Text><Text style={s.caption}>{demo ? "Both are in similar rank, play fun, Evening players" : player.reason || "Compare your play preferences"}</Text></View>
+          <View style={s.track} accessibilityRole="progressbar" accessibilityLabel="Player match" accessibilityValue={{ min: 0, max: 100, now: match }}><Animated.View style={[s.progress, { overflow: "hidden", width: progress.interpolate({ inputRange: [0, 100], outputRange: ["0%", "100%"] }) }]}><LinearGradient colors={["#aaacff", colors.brand]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+            <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: .55, backgroundColor: progress.interpolate({ inputRange: [0, 50, 100], outputRange: ["#758eff", "#b078ff", "#e8a8ff"] }) }]} />
+            <Animated.View pointerEvents="none" style={{ position: "absolute", top: 0, bottom: 0, width: "32%", left: shine.interpolate({ inputRange: [0, 1], outputRange: ["-32%", "100%"] }), opacity: shine.interpolate({ inputRange: [0, .15, .8, 1], outputRange: [0, .9, .9, 0] }) }}>
+              <LinearGradient colors={["rgba(255,255,255,0)", "rgba(255,255,255,.85)", "rgba(255,255,255,0)"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+            </Animated.View>
+          </Animated.View></View>
         </LinearGradient>
         <View style={s.actions}>
           <Pressable accessibilityRole="button" onPress={() => demo ? router.push({ pathname: "/preview-conversation", params: { id: player.id } }) : setError("Join a shared party to chat.")} style={[s.action, s.message]}><Text style={s.actionText}>Message</Text></Pressable>
