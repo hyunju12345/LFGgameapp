@@ -40,7 +40,9 @@
     "test": "node --test server/server.test.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
-    "export": "expo export --platform all"
+    "export": "expo export --platform all",
+    "export:pages": "node scripts/export-pages.mjs",
+    "deploy:pages": "node scripts/deploy-pages.mjs"
   },
   "private": true,
   "engines": {

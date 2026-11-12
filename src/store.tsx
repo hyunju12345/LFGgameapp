@@ -12,7 +12,8 @@ import * as SecureStore from "expo-secure-store";
 import { Bootstrap, preview, registerGames } from "./data";
 
 const host = Constants.expoConfig?.hostUri?.split(":")[0] || "localhost";
-export const apiUrl = process.env.EXPO_PUBLIC_API_URL || `http://${host}:8787`;
+const publicApi = process.env.EXPO_PUBLIC_API_URL;
+export const apiUrl = publicApi || (Platform.OS === "web" && !__DEV__ ? "" : `http://${host}:8787`);
 type Store = {
   data: Bootstrap;
   demo: boolean;
@@ -48,6 +49,7 @@ export function Provider({ children }: { children: React.ReactNode }) {
   const alive = useRef(true);
   const request = useCallback(
     async <T,>(route: string, method = "GET", body?: unknown): Promise<T> => {
+      if (!apiUrl) throw new Error("Online features need a connected server. You can explore this site in guest mode.");
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 10000);
       try {
