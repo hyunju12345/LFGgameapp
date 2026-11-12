@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { avatarFor, preview } from "./data";
 export const previewConversations = [
   { id: "party", name: "Team Korea", count: 5, preview: "Let’s queue up!", time: "Now", unread: 0, image: require("../assets/figma/b64d6.png") },
   { id: "jessica", name: "Jessica", preview: "Are you up for a game?", time: "32 min", unread: 12, image: require("../assets/figma/485dc.png") },
@@ -6,6 +7,14 @@ export const previewConversations = [
   { id: "may", name: "May", preview: "One more round after dinner?", time: "1 day ago", unread: 0, image: require("../assets/figma/ccbff.png") },
   { id: "lemon", name: "Lemon", preview: "Want to duo this weekend?", time: "3 days ago", unread: 0, image: require("../assets/figma/5f269.png") },
 ];
+export function getPreviewConversation(id: string) {
+  const existing = previewConversations.find(thread => thread.id === id);
+  if (existing) return existing;
+  const player = preview.users.find(user => user.id === id);
+  if (!player) return undefined;
+  return { id: player.id, name: player.name, preview: "Hey! Want to play a few rounds together?", time: "Now", unread: 0,
+    image: avatarFor(player.name) };
+}
 export const teamMessages: {
   body: string;
   time: string;

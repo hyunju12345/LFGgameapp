@@ -3,7 +3,7 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { previewConversations, teamMessages, usePreviewMessages, sendPreviewMessage } from "../conversation-preview";
+import { getPreviewConversation, teamMessages, usePreviewMessages, sendPreviewMessage } from "../conversation-preview";
 import { DesignHeader, DesignIcon, PreviewStatusBar, design } from "../figma-screens";
 import { Empty, Field, colors, styles } from "../ui";
 import { useStore } from "../store";
@@ -15,7 +15,7 @@ export default function PreviewConversation() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { demo } = useStore();
   const party = id === "party";
-  const thread = previewConversations.find(item => item.id === id);
+  const thread = getPreviewConversation(id || "");
   const count = id === "team" ? 6 : undefined;
   const transcript = party || id === "team";
   const [draft, setDraft] = useState("");
@@ -69,7 +69,7 @@ export default function PreviewConversation() {
             </React.Fragment>
           );
         })}
-        {(!demo || (!messages.length && !sent.length)) && <Empty title="No conversation yet" detail="Start a conversation with your party." />}
+        {(!demo || (!messages.length && !sent.length)) && <Empty title="No conversation yet" detail="Send a message to start a conversation." />}
       </ScrollView>
       {demo && thread && (
         <View style={s.composer}>

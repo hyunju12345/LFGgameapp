@@ -6,13 +6,16 @@ import { useStore } from "../../store";
 import { gameById } from "../../data";
 import { Button, Empty, Field, colors, styles } from "../../ui";
 import { DesignIcon, PreviewStatusBar, design } from "../../figma-screens";
-import { previewConversations, usePreviewMessages } from "../../conversation-preview";
+import { getPreviewConversation, previewConversations, usePreviewMessages } from "../../conversation-preview";
 
 export default function Chats() {
   const { data, demo } = useStore();
   const sentMessages = usePreviewMessages();
   const [query, setQuery] = useState("");
-  const rows = demo ? previewConversations.map(row => ({ ...row, preview: sentMessages[row.id]?.at(-1)?.body || row.preview })) : data.parties
+  const previewRows = [...previewConversations, ...Object.keys(sentMessages)
+    .filter(id => !previewConversations.some(row => row.id === id))
+    .map(getPreviewConversation).filter((row): row is NonNullable<typeof row> => !!row)];
+  const rows = demo ? previewRows.map(row => ({ ...row, preview: sentMessages[row.id]?.at(-1)?.body || row.preview })) : data.parties
     .filter(p => p.members.some(m => m.id === data.user.id))
     .map(p => ({
       id: p.id, name: p.name, count: p.members.length, preview: gameById(p.game).name,
