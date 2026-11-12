@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams } from "expo-router";
@@ -9,6 +9,7 @@ import { Empty, Field, colors, styles } from "../ui";
 import { useStore } from "../store";
 
 type PreviewMessage = (typeof teamMessages)[number];
+const suggestedMessages = ["Hey! Want to play?", "Ready for a game?", "Can I join your party?"];
 const receiptGaps = [11, 17, 16, 17, 9, 9, 27, 20, 4, 9, 9, 4];
 
 export default function PreviewConversation() {
@@ -18,10 +19,11 @@ export default function PreviewConversation() {
   const thread = getPreviewConversation(id || "");
   const count = id === "team" ? 6 : undefined;
   const transcript = party || id === "team";
+  const scroll = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const [draft, setDraft] = useState("");
   const sent: PreviewMessage[] = usePreviewMessages()[id || ""] || [];
   const [menu, setMenu] = useState(false);
-  const messages: PreviewMessage[] = transcript ? teamMessages : thread
+  const messages: PreviewMessage[] = transcript ? teamMessages : thread?.preview
     ? [{ body: thread.preview, time: thread.time, name: thread.name, image: thread.image }]
     : [];
 
@@ -42,7 +44,7 @@ export default function PreviewConversation() {
       {demo && menu && <View style={[styles.card, { margin: 12 }]}>
         <Text style={design.caption}>Design preview · Messages stay on this screen.</Text>
       </View>}
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.transcript, party && { paddingTop: 0 }]} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scroll} onContentSizeChange={() => { if (sent.length) scroll.current?.scrollToEnd({ animated: true }); }} showsVerticalScrollIndicator={false} contentContainerStyle={s.transcript} keyboardShouldPersistTaps="handled">
         {demo && [...messages, ...sent].map((message, index) => {
           const received = Boolean(message.name);
           const example = transcript && index < messages.length;
@@ -69,9 +71,13 @@ export default function PreviewConversation() {
             </React.Fragment>
           );
         })}
-        {(!demo || (!messages.length && !sent.length)) && <Empty title="No conversation yet" detail="Send a message to start a conversation." />}
+        {!demo && <Empty title="No conversation yet" detail="Send a message to start a conversation." />}
       </ScrollView>
       {demo && thread && (
+        <View style={s.composeArea}>
+        <View style={s.suggestions}>
+          {suggestedMessages.map(message => <Pressable key={message} accessibilityRole="button" accessibilityLabel={`Send: ${message}`} onPress={() => sendPreviewMessage(id || "", message)} style={s.suggestion}><Text style={s.suggestionText}>{message}</Text></Pressable>)}
+        </View>
         <View style={s.composer}>
           <Pressable accessibilityRole="button" accessibilityLabel="Conversation details" onPress={() => setMenu(!menu)} style={[s.iconButton, { backgroundColor: "#8741e1" }]}>
             <DesignIcon name="plus" size={16} />
@@ -84,6 +90,7 @@ export default function PreviewConversation() {
             <DesignIcon name="send" size={20} />
           </Pressable>
         </View>
+        </View>
       )}
     </SafeAreaView>
   );
@@ -92,7 +99,7 @@ export default function PreviewConversation() {
 const s = StyleSheet.create({
   hero: { overflow: "hidden", zIndex: 1 },
   teamCover: { position: "absolute", width: "100%", height: 713, top: -166.34 },
-  transcript: { paddingHorizontal: 16.5, paddingTop: 5, paddingBottom: 24, gap: 12 },
+  transcript: { paddingHorizontal: 16.5, paddingTop: 24, paddingBottom: 24, gap: 12 },
   date: { fontFamily: "Pretendard-Regular", color: "#8e8e93", fontSize: 12, lineHeight: 14, textAlign: "center", marginVertical: 4 },
   messageRow: { flexDirection: "row", gap: 8, minHeight: 36 },
   received: { justifyContent: "flex-start" },
@@ -109,6 +116,10 @@ const s = StyleSheet.create({
   unread: { fontFamily: "Pretendard-SemiBold", color: "#8741e1", fontSize: 10, lineHeight: 12 },
   time: { fontFamily: "Pretendard-Regular", color: "#959595", fontSize: 10, lineHeight: 14 },
 
+  composeArea: { gap: 8 },
+  suggestions: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 16, gap: 8, paddingVertical: 8 },
+  suggestion: { borderWidth: 1, borderColor: colors.brand, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8 },
+  suggestionText: { color: colors.brand, fontFamily: "Pretendard-Medium", fontSize: 12, lineHeight: 16 },
   composer: { marginHorizontal: 9, marginBottom: 16, padding: 8, borderRadius: 24, backgroundColor: "white", flexDirection: "row", alignItems: "center", gap: 8 },
   iconButton: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   input: { backgroundColor: "white", color: "#191919", minHeight: 32, paddingVertical: 4, paddingHorizontal: 8, flex: 1, fontFamily: "Pretendard-Regular", fontSize: 16, lineHeight: 19 },

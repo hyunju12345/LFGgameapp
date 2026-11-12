@@ -24,7 +24,7 @@ export default function FriendProfile() {
   return (
     <SafeAreaView edges={["top", "bottom"]} style={styles.page}>
       <PreviewStatusBar />
-      <DesignHeader title={player?.name ?? "Friend"} action={player && (
+      <DesignHeader onBack={() => router.replace("/friends")} title={player?.name ?? "Friend"} action={player && (
         <Pressable accessibilityRole="button" accessibilityLabel="Profile options" onPress={() => setInfo(info ? "" : "Player profile")} hitSlop={8}>
           <DesignIcon name="more" />
         </Pressable>

@@ -27,7 +27,7 @@ export function RecommendedProfile({ player }: { player: Player }) {
   }
   return <SafeAreaView edges={["top"]} style={styles.page}>
     <PreviewStatusBar />
-    <View style={{ paddingHorizontal: 4 }}><DesignHeader title={player.name} action={<View style={{ width: 28, alignItems: "center" }}><DesignIcon name="more" /></View>} /></View>
+    <View style={{ paddingHorizontal: 4 }}><DesignHeader onBack={() => router.replace("/friends")} title={player.name} action={<View style={{ width: 28, alignItems: "center" }}><DesignIcon name="more" /></View>} /></View>
     <ScrollView ref={scroll} showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
       <View style={s.hero}>
         <View style={s.identity}>

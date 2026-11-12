@@ -17,7 +17,8 @@ export default function SearchGames() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Game[]>([]);
   const [selected, setSelected] = useState<Game[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [removed, setRemoved] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [page, setPage] = useState({ nextStart: 0, hasMore: false });
@@ -28,6 +29,7 @@ export default function SearchGames() {
     const current = ++generation.current;
     inFlight.current = false;
     const term = query.trim();
+    if (!term) return;
     let active = true;
     const timer = setTimeout(async () => {
       inFlight.current = true;
@@ -41,7 +43,7 @@ export default function SearchGames() {
   }, [query, request]);
   function changeQuery(value: string) {
     generation.current++;
-    setQuery(value); setLoading(true); setResults([]); setError(""); setPage({ nextStart: 0, hasMore: false });
+    setQuery(value); setLoading(Boolean(value.trim())); setResults([]); setError(""); setPage({ nextStart: 0, hasMore: false });
   }
   async function more() {
     if (loading || inFlight.current || !page.hasMore) return;
@@ -54,18 +56,19 @@ export default function SearchGames() {
     finally { if (current === generation.current) { setLoading(false); inFlight.current = false; } }
   }
   async function save() {
-    if (!selected.length || saving) return;
+    if ((!selected.length && !removed.length) || saving) return;
     setSaving(true); setError("");
     try {
       const details = demo ? await Promise.all(selected.map(game => request<CatalogueGame>(`/games/${game.id}`))) : selected;
       const items: CatalogueGame[] = details.map(item => 'image' in item ? { id: item.id } : item);
       if (demo) items.forEach(updateCatalogueGame);
-      await add(items);
+      await add(items, removed);
       router.back();
     } catch (e) { setError((e as Error).message); }
     finally { setSaving(false); }
   }
-  const items = results.filter(game => !savedIds.has(game.id));
+  const items = query.trim() ? results : [...saved, ...selected.filter(game => !savedIds.has(game.id))];
+  const changed = selected.length > 0 || removed.length > 0;
   return <SafeAreaView edges={["top", "bottom"]} style={styles.page}>
     <PreviewStatusBar />
     <View style={s.header}><Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.canGoBack() ? router.back() : router.replace("/games")}><View style={{ transform: [{ rotate: "180deg" }] }}><SvgUri uri={Asset.fromModule(require("../../assets/figma/07a18.svg")).uri} width={36} height={36} /></View></Pressable><Text style={styles.title}>Games</Text></View>
@@ -75,12 +78,12 @@ export default function SearchGames() {
       </View>
       <FlatList data={items} keyExtractor={game => game.id} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
         contentContainerStyle={{ gap: 24, paddingBottom: 104 }} onEndReached={() => void more()} onEndReachedThreshold={.5}
-        renderItem={({ item }) => <LibraryGameCard game={item} selectable selected={savedIds.has(item.id) || selected.some(game => game.id === item.id)} disabled={saving || savedIds.has(item.id)}
-          onPress={() => { setSelected(old => old.some(game => game.id === item.id) ? old.filter(game => game.id !== item.id) : old.length < 30 ? [...old, item] : old); }} />}
-        ListEmptyComponent={!loading && !error ? <Empty title="No new games found" detail="Try another game name. Games already in your list are hidden." /> : undefined}
+        renderItem={({ item }) => <LibraryGameCard game={item} selectable selected={(savedIds.has(item.id) && !removed.includes(item.id)) || selected.some(game => game.id === item.id)} disabled={saving}
+          onPress={() => { if (savedIds.has(item.id)) { setRemoved(old => old.includes(item.id) ? old.filter(id => id !== item.id) : [...old, item.id]); return; } setSelected(old => old.some(game => game.id === item.id) ? old.filter(game => game.id !== item.id) : old.length < 30 ? [...old, item] : old); }} />}
+        ListEmptyComponent={!loading && !error ? <Empty title="No new games found" detail="Search for a game to add to your list." /> : undefined}
         ListFooterComponent={<View style={{ gap: 12 }}>{loading && <ActivityIndicator color={colors.brand} />}{!!error && <Pressable onPress={() => changeQuery(query + " ")}><ErrorText message={error + " Tap to retry."} /></Pressable>}</View>} />
     </View>
-    <View style={s.footer}><Pressable accessibilityRole="button" accessibilityLabel="Add games" disabled={!selected.length || saving} onPress={() => void save()} style={[s.button, (!selected.length || saving) && { opacity: .6 }]}>
+    <View style={s.footer}><Pressable accessibilityRole="button" accessibilityLabel="Add games" disabled={!changed || saving} onPress={() => void save()} style={[s.button, (!changed || saving) && { opacity: .6 }]}>
       {saving ? <ActivityIndicator color="white" /> : <Text style={s.buttonText}>Add games</Text>}
     </Pressable></View>
   </SafeAreaView>;

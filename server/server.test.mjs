@@ -211,6 +211,12 @@ test("Steam catalogue discovery, pagination, saved library isolation, and creati
     assert.equal(added.data.length, 5);
     assert.equal((await req("/games/library", a, "POST", { ids: ["steam:9990001"] })).data.length, 5);
     assert.equal((await req("/games/library", b)).data.length, 4);
+    const removed = await req("/games/library", a, "POST", { ids: [], removeIds: ["steam:9990001", "lol"] });
+    assert.equal(removed.status, 200);
+    assert.equal(removed.data.length, 3);
+    assert.ok(!removed.data.some(game => game.id === "lol" || game.id === "steam:9990001"));
+    assert.equal((await req("/games/library", b)).data.length, 4);
+    assert.equal((await req("/games/library", a)).data.length, 3);
     assert.equal((await req("/games/steam:9990001")).data.name, "Test & Game");
     const party = await req("/parties", a, "POST", { name: "Steam squad", game: "steam:9990001", mode: "Default", tags: [], capacity: 5, is_open: true });
     assert.equal(party.status, 200);

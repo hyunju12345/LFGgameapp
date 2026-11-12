@@ -63,17 +63,18 @@ export function PreviewStatusBar({ dark = false }: { dark?: boolean }) {
   );
 }
 
-export function DesignHeader({ title, back = true, action, variant = "compact", subtitle }: {
+export function DesignHeader({ title, back = true, action, variant = "compact", subtitle, onBack }: {
   title: React.ReactNode; back?: boolean; action?: React.ReactNode;
   variant?: "compact" | "profile" | "settings" | "conversation";
   subtitle?: string;
+  onBack?: () => void;
 }) {
   return (
     <View style={[design.header, variant === "profile" && design.profileHeader,
       variant === "settings" && design.settingsHeader, variant === "conversation" && design.conversationHeader]}>
       {back && (
         <Pressable accessibilityRole="button" accessibilityLabel="Go back" hitSlop={8}
-          onPress={() => router.canGoBack() ? router.back() : router.replace("/")}>
+          onPress={onBack || (() => router.canGoBack() ? router.back() : router.replace("/"))}>
           <View style={{ transform: [{ rotate: "180deg" }] }}><DesignIcon name="back" size={36} /></View>
         </Pressable>
       )}

@@ -201,13 +201,16 @@ async function dispatch(req, b, url) {
       run("INSERT INTO game_library_initialized VALUES(?)", u.id);
     });
     if (method === "POST") {
-      if (!Array.isArray(b.ids) || b.ids.length < 1 || b.ids.length > 30 || b.ids.some(id => typeof id !== "string")) fail(400, "Choose 1–30 games.");
+      const removeIds = b.removeIds ?? [];
+      if (!Array.isArray(removeIds) || removeIds.length > 1000 || removeIds.some(id => typeof id !== "string")) fail(400, "Choose valid games to remove.");
+      if (!Array.isArray(b.ids) || (!b.ids.length && !removeIds.length) || b.ids.length > 30 || b.ids.some(id => typeof id !== "string")) fail(400, "Choose up to 30 games.");
       const ids = [...new Set(b.ids)];
       const resolved = await Promise.all(ids.filter(id => !games.has(id)).map(async id => {
         const saved = one("SELECT data FROM game_catalog WHERE id=?", id);
         return saved ? JSON.parse(saved.data) : steamGame(id);
       }));
       transaction(() => {
+        removeIds.forEach(id => run("DELETE FROM game_library WHERE user_id=? AND game_id=?", u.id, id));
         resolved.forEach(game => run("INSERT OR REPLACE INTO game_catalog VALUES(?,?)", game.id, JSON.stringify(game)));
         ids.forEach((id, index) => run("INSERT OR IGNORE INTO game_library VALUES(?,?,?)", u.id, id, Date.now() + index));
       });

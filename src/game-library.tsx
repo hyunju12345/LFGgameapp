@@ -20,7 +20,7 @@ async function writeLocal(games: CatalogueGame[]) {
   await SecureStore.setItemAsync(storageKey + ".count", String(chunks.length));
 }
 const encode = (game: Game): CatalogueGame => ({ id: game.id, steamId: game.steamId, name: game.name, modes: game.modes, imageUrl: typeof game.image === "object" && "uri" in game.image ? game.image.uri : undefined });
-const Context = createContext<{ games: Game[]; loading: boolean; error: string; add: (games: CatalogueGame[]) => Promise<void>; reload: () => Promise<void> } | null>(null);
+const Context = createContext<{ games: Game[]; loading: boolean; error: string; add: (games: CatalogueGame[], removeIds?: string[]) => Promise<void>; reload: () => Promise<void> } | null>(null);
 export function GameLibraryProvider({ children }: { children: React.ReactNode }) {
   const { data, demo, request } = useStore();
   const [games, setGames] = useState<Game[]>(libraryDefaults);
@@ -45,15 +45,16 @@ export function GameLibraryProvider({ children }: { children: React.ReactNode })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [demo, request, data.user.id]);
-  async function add(items: CatalogueGame[]) {
+  async function add(items: CatalogueGame[], removeIds: string[] = []) {
     if (demo) {
       const map = new Map(games.map(game => [game.id, encode(game)]));
+      removeIds.forEach(id => map.delete(id));
       for (const item of items) map.set(item.id, item);
       const saved = [...map.values()];
       await writeLocal(saved);
       setGames(registerGames(saved));
     } else {
-      const saved = await request<CatalogueGame[]>("/games/library", "POST", { ids: items.map(game => game.id) });
+      const saved = await request<CatalogueGame[]>("/games/library", "POST", { ids: items.map(game => game.id), removeIds });
       setGames(registerGames(saved));
     }
   }

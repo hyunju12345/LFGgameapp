@@ -12,7 +12,7 @@ export function getPreviewConversation(id: string) {
   if (existing) return existing;
   const player = preview.users.find(user => user.id === id);
   if (!player) return undefined;
-  return { id: player.id, name: player.name, preview: "Hey! Want to play a few rounds together?", time: "Now", unread: 0,
+  return { id: player.id, name: player.name, preview: "", time: "Now", unread: 0,
     image: avatarFor(player.name) };
 }
 export const teamMessages: {
