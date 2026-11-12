@@ -1,8 +1,8 @@
-import React, { useRef, useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useRef, useState } from "react";
+import { Animated, Easing, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { Player, gameById } from "./data";
 import { Avatar, Empty, ErrorText, colors, styles } from "./ui";
 import { DesignHeader, DesignIcon, PreviewStatusBar } from "./figma-screens";
@@ -18,6 +18,17 @@ export function RecommendedProfile({ player }: { player: Player }) {
   const [busy, setBusy] = useState(false);
   const scroll = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const match = Math.max(0, Math.min(100, player.match || 0));
+  const [progress] = useState(() => new Animated.Value(0));
+  const [displayMatch, setDisplayMatch] = useState(0);
+  useFocusEffect(useCallback(() => {
+    const listener = progress.addListener(({ value }) => setDisplayMatch(Math.round(value)));
+    progress.setValue(0);
+    const animation = Animated.timing(progress, {
+      toValue: match, duration: 1200, easing: Easing.out(Easing.cubic), useNativeDriver: false,
+    });
+    animation.start();
+    return () => { animation.stop(); progress.removeListener(listener); };
+  }, [progress, match]));
   async function add() {
     if (demo) { router.push("/auth"); return; }
     setBusy(true); setError("");
@@ -38,8 +49,8 @@ export function RecommendedProfile({ player }: { player: Player }) {
           <Text style={s.name}>{player.name}</Text>
         </View>
         <LinearGradient colors={["#303030", "#715695"]} start={{ x: 0, y: 0 }} end={{ x: 1.1547, y: .31 }} style={s.compatibility}>
-          <View style={{ gap: 4 }}><Text style={s.name}>{match}% Match</Text><Text style={s.caption}>{demo ? "Both are in similar rank, play fun, Evening players" : player.reason || "Compare your play preferences"}</Text></View>
-          <View style={s.track}><LinearGradient colors={["#aaacff", colors.brand]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[s.progress, { width: `${match}%` }]} /></View>
+          <View style={{ gap: 4 }}><Text style={s.name}>{displayMatch}% Match</Text><Text style={s.caption}>{demo ? "Both are in similar rank, play fun, Evening players" : player.reason || "Compare your play preferences"}</Text></View>
+          <View style={s.track} accessibilityRole="progressbar" accessibilityLabel="Player match" accessibilityValue={{ min: 0, max: 100, now: match }}><Animated.View style={[s.progress, { overflow: "hidden", width: progress.interpolate({ inputRange: [0, 100], outputRange: ["0%", "100%"] }) }]}><LinearGradient colors={["#aaacff", colors.brand]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} /></Animated.View></View>
         </LinearGradient>
         <View style={s.actions}>
           <Pressable accessibilityRole="button" onPress={() => demo ? router.push({ pathname: "/preview-conversation", params: { id: player.id } }) : setError("Join a shared party to chat.")} style={[s.action, s.message]}><Text style={s.actionText}>Message</Text></Pressable>
