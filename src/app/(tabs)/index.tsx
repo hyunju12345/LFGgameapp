@@ -10,6 +10,7 @@ import { PreviewStatusBar } from "../../figma-screens";
 import { useStore } from "../../store";
 import { ActivePartyCard } from "../../active-party-card";
 import { useGameLibrary } from "../../game-library";
+import { useNotifications } from "../../notifications";
 import { gameById } from "../../data";
 
 const homePhotos: Record<string, ImageSourcePropType> = {
@@ -34,6 +35,7 @@ function SectionHeading({ title, count, onPress }: { title: string; count?: numb
 export default function Home() {
   const { data, demo, loading, error, refresh, request } = useStore();
   const { games } = useGameLibrary();
+  const { notifications } = useNotifications();
   const [pending, setPending] = useState("");
   const [addError, setAddError] = useState("");
   const friends = data.users.filter(p => p.friendStatus === "accepted" && p.online);
@@ -58,8 +60,9 @@ export default function Home() {
             <View style={{ flex: 1 }}><Text style={styles.title}>Hello, {data.user.name}</Text>
               <Text style={[styles.muted, { color: "#b7b7b7", lineHeight: 17 }]}>Who are you playing with today?</Text></View>
           </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="Friend requests" onPress={() => router.push("/friends")} style={home.bell}>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Notifications, ${notifications.length} pending`} onPress={() => router.push("/notifications")} style={home.bell}>
             <Icon name="bell" size={24.44} height={26.07} />
+            {notifications.length > 0 && <View style={home.notificationBadge}><Text style={home.notificationCount}>{notifications.length > 9 ? "9+" : notifications.length}</Text></View>}
           </Pressable>
         </View>
         <View style={home.divider}><SvgUri uri={Asset.fromModule(divider).uri} width={1} height={370} style={{ position: "absolute", left: 184.5, top: -185, transform: [{ rotate: "90deg" }] }} /></View>
@@ -131,6 +134,8 @@ export default function Home() {
 const home = StyleSheet.create({
   content: { paddingTop: 24, paddingBottom: 32, gap: 20 },
   header: { paddingHorizontal: 20, gap: 16, alignItems: "center" },
+  notificationBadge: { position: "absolute", right: -4, top: -4, minWidth: 16, height: 16, paddingHorizontal: 4, borderRadius: 8, backgroundColor: colors.brand, alignItems: "center", justifyContent: "center" },
+  notificationCount: { color: colors.bg, fontSize: 10, fontFamily: "Pretendard-Bold" },
   bell: { width: 32, height: 32, alignItems: "center", justifyContent: "center" },
   divider: { height: 0, width: 370, alignSelf: "center" },
   main: { paddingHorizontal: 20, gap: 24 },

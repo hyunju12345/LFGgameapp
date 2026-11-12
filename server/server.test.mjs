@@ -157,10 +157,12 @@ test("two real accounts: friendship, private data, party capacity, chat, persist
     invitees: [b.data.user.id],
   });
   assert.equal(invitation.status, 200);
-  assert.ok((await req("/bootstrap", bt)).data.parties.some(p => p.id === invitation.data.id));
+  assert.equal((await req("/bootstrap", bt)).data.parties.find(p => p.id === invitation.data.id).invited, true);
+  assert.equal((await req("/bootstrap", at)).data.parties.find(p => p.id === invitation.data.id).invited, false);
   assert.ok(!(await req("/bootstrap", ct)).data.parties.some(p => p.id === invitation.data.id));
   assert.equal((await req(`/parties/${invitation.data.id}/join`, ct, "POST")).status, 403);
   assert.equal((await req(`/parties/${invitation.data.id}/join`, bt, "POST")).status, 200);
+  assert.equal((await req("/bootstrap", bt)).data.parties.find(p => p.id === invitation.data.id).invited, false);
   assert.equal((await req("/parties", at, "POST", { name: "Too many", game: "lol", mode: "ARAM", tags: [], capacity: 2, is_open: false, invitees: [b.data.user.id, c.data.user.id] })).status, 400);
   assert.equal((await req("/parties", at, "POST", { name: "Invalid player", game: "lol", mode: "ARAM", tags: [], capacity: 2, is_open: false, invitees: ["missing-player"] })).status, 400);
   const solo = await req("/parties", at, "POST", { name: "Solo draft", game: "lol", mode: "ARAM", tags: [], capacity: 1, is_open: false });

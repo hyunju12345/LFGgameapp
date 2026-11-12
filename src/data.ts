@@ -21,6 +21,7 @@ export type Party = {
   tags: string[];
   capacity: number;
   is_open: boolean;
+  invited?: boolean;
   members: Player[];
 };
 export type Message = {

@@ -271,7 +271,7 @@ async function dispatch(req, b, url) {
       u.id,
       u.id,
       u.id,
-    ).map(partyView);
+    ).map(p => ({ ...partyView(p), invited: !!one("SELECT 1 FROM party_invites WHERE party_id=? AND user_id=?", p.id, u.id) }));
     const current = one("SELECT c.party_id FROM current_parties c JOIN members m ON m.party_id=c.party_id AND m.user_id=c.user_id WHERE c.user_id=?", u.id)
       || one("SELECT party_id FROM members WHERE user_id=? ORDER BY rowid DESC LIMIT 1", u.id);
     return { user: profile({ ...u, seen: Date.now() }), users, parties, currentPartyId: current?.party_id || null, gameCatalog: all("SELECT data FROM game_catalog").map(row => JSON.parse(row.data)) };
