@@ -8,6 +8,7 @@ import { SvgUri } from "react-native-svg";
 import { Avatar, Empty, ErrorText, Icon, colors, styles } from "../../ui";
 import { PreviewStatusBar } from "../../figma-screens";
 import { useStore } from "../../store";
+import { usePreviewParties } from "../../party-preview";
 import { ActivePartyCard } from "../../active-party-card";
 import { useGameLibrary } from "../../game-library";
 import { useNotifications } from "../../notifications";
@@ -35,6 +36,7 @@ function SectionHeading({ title, count, onPress }: { title: string; count?: numb
 export default function Home() {
   const { data, demo, loading, error, refresh, request } = useStore();
   const { games } = useGameLibrary();
+  const previewParties = usePreviewParties();
   const { notifications } = useNotifications();
   const [pending, setPending] = useState("");
   const [addError, setAddError] = useState("");
@@ -68,7 +70,7 @@ export default function Home() {
         <View style={home.divider}><SvgUri uri={Asset.fromModule(divider).uri} width={1} height={370} style={{ position: "absolute", left: 184.5, top: -185, transform: [{ rotate: "90deg" }] }} /></View>
       </View>
       <View style={home.main}>
-        <ActivePartyCard party={mine.find(p => p.id === data.currentPartyId) || mine[0]} demo={demo} />
+        <ActivePartyCard party={demo ? previewParties.find(p => p.active) || previewParties[0] : mine.find(p => p.id === data.currentPartyId) || mine[0]} demo={demo} />
         {loading && <ActivityIndicator color={colors.brand} />}
         {Boolean(error) && <Pressable onPress={() => void refresh()}><ErrorText message={error + " Tap to retry."} /></Pressable>}
         <View style={home.section}>

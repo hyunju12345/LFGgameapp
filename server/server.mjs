@@ -253,6 +253,18 @@ async function dispatch(req, b, url) {
         ...profile(v),
         friendStatus: rel?.status || null,
         incoming: rel?.recipient === u.id,
+        compatibility: (() => {
+          const mine = new Set([u.game, ...all("SELECT game_id FROM game_library WHERE user_id=?", u.id).map(row => row.game_id)]);
+          const theirs = new Set([v.game, ...all("SELECT game_id FROM game_library WHERE user_id=?", v.id).map(row => row.game_id)]);
+          const common = [...theirs].filter(id => mine.has(id)).length;
+          return [
+            { label: `${common} ${common === 1 ? "game" : "games"} in common`, status: common ? "match" : "different" },
+            { label: v.game === u.game ? v.rank === u.rank ? "Same rank in your current game" : "Different rank in your current game" : "Playing different games", status: v.game === u.game && v.rank === u.rank ? "match" : "different" },
+            { label: v.style === u.style ? `Both prefer ${u.style}` : "Different playstyles", status: v.style === u.style ? "match" : "different" },
+            { label: "Play schedule not shared yet", status: "partial" },
+            { label: "Voice chat preference not shared yet", status: "partial" },
+          ];
+        })(),
         match: Math.round(
           100 *
             ((v.game === u.game ? 0.5 : 0) +

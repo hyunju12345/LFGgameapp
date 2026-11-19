@@ -3,7 +3,7 @@ import { avatarFor, preview } from "./data";
 export const previewConversations = [
   { id: "party", name: "Team Korea", count: 5, preview: "Let’s queue up!", time: "Now", unread: 0, image: require("../assets/figma/b64d6.png") },
   { id: "jessica", name: "Jessica", preview: "Are you up for a game?", time: "32 min", unread: 12, image: require("../assets/figma/485dc.png") },
-  { id: "team", name: "Team Parsons", count: 6, preview: "Anyone playing tonight?", time: "3 hours", unread: 30, image: require("../assets/figma/45c8e.png") },
+  { id: "team", name: "Team Parsons", count: 6, preview: "This week’s homework...", time: "3 hours", unread: 30, image: require("../assets/figma/45c8e.png") },
   { id: "may", name: "May", preview: "One more round after dinner?", time: "1 day ago", unread: 0, image: require("../assets/figma/ccbff.png") },
   { id: "lemon", name: "Lemon", preview: "Want to duo this weekend?", time: "3 days ago", unread: 0, image: require("../assets/figma/5f269.png") },
 ];
@@ -34,6 +34,13 @@ export const teamMessages: {
   { body: "Absolutely!", time: "7:43", name: "Marin", image: require("../assets/figma/7c68a.png") },
   { body: "I can play after seven.", time: "7:43", name: "Marin" },
   { body: "Let’s queue up!", time: "7:20" },
+];
+
+export const groupMessages: typeof teamMessages = [
+  { body: "Has anyone started this week’s homework?", time: "3 hours", name: "Jessica", image: require("../assets/figma/c4138.png") },
+  { body: "I’m working on the presentation slides.", time: "3 hours" },
+  { body: "Let’s share our notes before class.", time: "3 hours", name: "Ian", image: require("../assets/figma/750be.png") },
+  { body: "Sounds good. I’ll upload mine tonight!", time: "3 hours" },
 ];
 
 type SentPreviewMessage = { body: string; time: string };

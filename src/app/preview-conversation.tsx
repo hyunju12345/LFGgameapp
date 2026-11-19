@@ -3,7 +3,9 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { getPreviewConversation, teamMessages, usePreviewMessages, sendPreviewMessage } from "../conversation-preview";
+import { gameById } from "../data";
+import { usePreviewParties } from "../party-preview";
+import { getPreviewConversation, groupMessages, teamMessages, usePreviewMessages, sendPreviewMessage } from "../conversation-preview";
 import { DesignHeader, DesignIcon, PreviewStatusBar, design } from "../figma-screens";
 import { Empty, Field, colors, styles } from "../ui";
 import { useStore } from "../store";
@@ -15,15 +17,17 @@ const receiptGaps = [11, 17, 16, 17, 9, 9, 27, 20, 4, 9, 9, 4];
 export default function PreviewConversation() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { demo } = useStore();
-  const party = id === "party";
-  const thread = getPreviewConversation(id || "");
+  const previewParties = usePreviewParties();
+  const activeParty = previewParties.find(party => `party:${party.id}` === id);
+  const party = id === "party" || Boolean(activeParty);
+  const thread = activeParty ? { id, name: activeParty.name, image: gameById(activeParty.game).image, preview: "", time: "Now" } : getPreviewConversation(id || "");
   const count = id === "team" ? 6 : undefined;
-  const transcript = party || id === "team";
+  const transcript = id === "party" || id === "team";
   const scroll = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const [draft, setDraft] = useState("");
   const sent: PreviewMessage[] = usePreviewMessages()[id || ""] || [];
   const [menu, setMenu] = useState(false);
-  const messages: PreviewMessage[] = transcript ? teamMessages : thread?.preview
+  const messages: PreviewMessage[] = transcript ? id === "team" ? groupMessages : teamMessages : thread?.preview
     ? [{ body: thread.preview, time: thread.time, name: thread.name, image: thread.image }]
     : [];
 
@@ -34,9 +38,9 @@ export default function PreviewConversation() {
           style={party ? [StyleSheet.absoluteFill, { width: "100%", height: "100%" }] : s.teamCover} />}
         <LinearGradient colors={["rgba(0,0,0,.45)", "rgba(0,0,0,.7)"]}>
           <PreviewStatusBar />
-          <DesignHeader variant="conversation" onBack={() => router.replace("/chats")}
+          <DesignHeader variant="conversation" onBack={() => activeParty ? router.replace(`/party/${activeParty.id}`) : router.replace("/chats")}
             title={thread ? <>{thread.name}{count ? <Text style={{ color: colors.brand }}> {count}</Text> : null}</> : "Chat"}
-            subtitle={party ? "Your party • League of Legends" : undefined}
+            subtitle={party ? `Your party • ${gameById(activeParty?.game || "lol").name}` : undefined}
             action={<Pressable accessibilityRole="button" accessibilityLabel="Conversation details"
               onPress={() => setMenu(!menu)}><DesignIcon name="menu" size={36} /></Pressable>} />
         </LinearGradient>

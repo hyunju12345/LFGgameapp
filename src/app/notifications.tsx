@@ -19,7 +19,7 @@ export default function Notifications() {
     try {
       if (demo) {
         completePreview(item.id);
-        if (item.kind === "party") router.push("/preview-conversation?id=party");
+        if (item.kind === "party") router.push("/party/preview-party");
         else setFeedback(`${item.name}’s friend request accepted. This is a preview.`);
       } else if (item.kind === "friend") {
         await request("/friends", "POST", { userId: item.targetId });
@@ -28,7 +28,7 @@ export default function Notifications() {
       } else {
         await request(`/parties/${item.targetId}/join`, "POST");
         await refresh();
-        router.push(`/chat?id=${item.targetId}`);
+        router.push(`/party/${item.targetId}`);
       }
     } catch (e) { setError((e as Error).message); }
     finally { setBusy(""); }

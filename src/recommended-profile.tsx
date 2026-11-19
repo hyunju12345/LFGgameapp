@@ -6,6 +6,7 @@ import { router, useFocusEffect } from "expo-router";
 import { Player, gameById } from "./data";
 import { Avatar, Empty, ErrorText, colors, styles } from "./ui";
 import { DesignHeader, DesignIcon, PreviewStatusBar } from "./figma-screens";
+import { MatchDetails } from "./match-details";
 import { useStore } from "./store";
 const history = [
   { game: "lol", mode: "ARAM", date: "Nov 9, 2026", result: "Defeat" },
@@ -52,13 +53,14 @@ export function RecommendedProfile({ player }: { player: Player }) {
           <Text style={s.name}>{player.name}</Text>
         </View>
         <LinearGradient colors={["#303030", "#715695"]} start={{ x: 0, y: 0 }} end={{ x: 1.1547, y: .31 }} style={s.compatibility}>
-          <View style={{ gap: 4 }}><Animated.Text style={[s.name, { color: progress.interpolate({ inputRange: [0, 50, 100], outputRange: ["#a9baff", "#d0a8ff", "#f1ceff"] }) }]}>{displayMatch}% Match</Animated.Text><Text style={s.caption}>{demo ? "Both are in similar rank, play fun, Evening players" : player.reason || "Compare your play preferences"}</Text></View>
+          <View><Animated.Text style={[s.name, { color: progress.interpolate({ inputRange: [0, 50, 100], outputRange: ["#a9baff", "#d0a8ff", "#f1ceff"] }) }]}>{displayMatch}% Match</Animated.Text></View>
           <View style={s.track} accessibilityRole="progressbar" accessibilityLabel="Player match" accessibilityValue={{ min: 0, max: 100, now: match }}><Animated.View style={[s.progress, { overflow: "hidden", width: progress.interpolate({ inputRange: [0, 100], outputRange: ["0%", "100%"] }) }]}><LinearGradient colors={["#aaacff", colors.brand]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
             <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: .55, backgroundColor: progress.interpolate({ inputRange: [0, 50, 100], outputRange: ["#758eff", "#b078ff", "#e8a8ff"] }) }]} />
             <Animated.View pointerEvents="none" style={{ position: "absolute", top: 0, bottom: 0, width: "32%", left: shine.interpolate({ inputRange: [0, 1], outputRange: ["-32%", "100%"] }), opacity: shine.interpolate({ inputRange: [0, .15, .8, 1], outputRange: [0, .9, .9, 0] }) }}>
               <LinearGradient colors={["rgba(255,255,255,0)", "rgba(255,255,255,.85)", "rgba(255,255,255,0)"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
             </Animated.View>
           </Animated.View></View>
+          <MatchDetails player={player} demo={demo} />
         </LinearGradient>
         <View style={s.actions}>
           <Pressable accessibilityRole="button" onPress={() => demo ? router.push({ pathname: "/preview-conversation", params: { id: player.id } }) : setError("Join a shared party to chat.")} style={[s.action, s.message]}><Text style={s.actionText}>Message</Text></Pressable>
@@ -96,7 +98,7 @@ const s = StyleSheet.create({
   actions: { flexDirection: "row", gap: 16, paddingHorizontal: 4 }, action: { flex: 1, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 8, alignItems: "center", justifyContent: "center", height: 32 },
   message: { borderWidth: 1, borderColor: "white" }, actionText: { color: "white", fontFamily: "Pretendard-SemiBold", fontSize: 12, lineHeight: 14 },
   title: { color: "white", fontFamily: "Pretendard-SemiBold", fontSize: 16, lineHeight: 19, paddingHorizontal: 4 },
-  tags: { flexDirection: "row", gap: 12, flexWrap: "wrap" }, tag: { borderWidth: 1, borderColor: colors.brand, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 8, alignItems: "center" }, tagText: { color: colors.brand, fontFamily: "Pretendard-Bold", fontSize: 12, lineHeight: 16.8 },
+  tags: { flexDirection: "row", gap: 12, flexWrap: "wrap", marginRight: -1 }, tag: { borderWidth: 1, borderColor: colors.brand, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 8, alignItems: "center" }, tagText: { color: colors.brand, fontFamily: "Pretendard-Bold", fontSize: 12, lineHeight: 16.8 },
   historyCard: { flexDirection: "row", alignItems: "center", backgroundColor: colors.card, padding: 16, gap: 16, borderRadius: 12 },
   game: { width: 67, height: 67, borderRadius: 8 }, mode: { color: "white", fontFamily: "Pretendard-Medium", fontSize: 16, lineHeight: 19 },
   result: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, alignSelf: "flex-start" }, link: { color: colors.brand, fontFamily: "Pretendard-SemiBold", fontSize: 12, lineHeight: 14 },

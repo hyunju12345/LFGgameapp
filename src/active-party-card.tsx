@@ -8,22 +8,24 @@ import { Avatar, colors, styles } from "./ui";
 import { DesignIcon } from "./figma-screens";
 import { Party, gameById } from "./data";
 const faces = [require("../assets/figma/a6ea2.png"), require("../assets/figma/08dd4.png"), require("../assets/figma/dfbf2.png"), require("../assets/figma/05e26.png")];
-export function ActivePartyCard({ party, demo = false }: { party?: Party; demo?: boolean }) {
+export function ActivePartyCard({ party, demo = false, compact = false }: { party?: Party; demo?: boolean; compact?: boolean }) {
   if (!demo && !party) return null;
   const game = gameById(party?.game || "lol");
-  return <Pressable accessibilityRole="button" accessibilityLabel={demo ? "Open Team Korea" : `Open ${party?.name}`}
-    onPress={() => demo ? router.push({ pathname: "/preview-conversation", params: { id: "party" } }) : router.push({ pathname: "/chat", params: { id: party!.id } })} style={s.card}>
-    <Image source={game.image} style={s.background} resizeMode="cover" />
-    <LinearGradient colors={[colors.brand, "rgba(0,0,0,.3)"]} start={{ x: 0, y: .5 }} end={{ x: 1, y: .5 }} style={StyleSheet.absoluteFill} />
+  const isActive = party?.active ?? !compact;
+  const name = party?.name || "Team Korea";
+  const exampleFaces = !demo ? null : !party || party.id === "team-korea" ? faces : party.id === "team-parsons" ? [faces[1], faces[0], require("../assets/figma/97223.png")] : party.id.startsWith("toad-lover") ? [faces[3], faces[1], faces[0], require("../assets/figma/97223.png")] : null;
+  return <Pressable accessibilityRole="button" accessibilityLabel={`Open ${name}`}
+    onPress={() => router.push({ pathname: "/party/[id]", params: { id: party?.id || "team-korea" } })} style={[s.card, compact && { minHeight: 120 }]}>
+    <Image source={party?.game === "mario-kart" ? require("../assets/figma/b14d6.png") : game.image} style={s.background} resizeMode="cover" />
+    <LinearGradient colors={[isActive ? colors.brand : "black", "rgba(0,0,0,.3)"]} start={{ x: 0, y: .5 }} end={{ x: 1, y: .5 }} style={StyleSheet.absoluteFill} />
     <View style={{ flex: 1, gap: 16 }}>
       <View style={{ gap: 4 }}>
-        <View style={[styles.row, { gap: 4 }]}><SvgUri uri={Asset.fromModule(require("../assets/figma/ddc35.svg")).uri} width={6} height={6} /><Text style={s.live}>Live</Text></View>
-        <Text style={s.name}>{demo ? "Team Korea" : party?.name}</Text>
-        <View style={{ gap: 4, opacity: .8 }}><Text style={s.subtitle}>Your party • {game.name}</Text><Text style={s.caption}>{demo ? "In match • 18 min" : `${party?.members.length}/${party?.capacity} players`}</Text></View>
+        {compact ? <View style={[styles.row, { gap: 4 }]}>{isActive && <SvgUri uri={Asset.fromModule(require("../assets/figma/ddc35.svg")).uri} width={6} height={6} />}<Text style={s.name}>{name}</Text></View> : <><View style={[styles.row, { gap: 4 }]}><SvgUri uri={Asset.fromModule(require("../assets/figma/ddc35.svg")).uri} width={6} height={6} /><Text style={s.live}>Live</Text></View><Text style={s.name}>{name}</Text></>}
+        <View style={{ gap: 4, opacity: .8 }}><Text style={s.subtitle}>{party && party.owner !== "preview" && demo ? `${party.owner === "harry" ? "Harry" : "Toad"}’s party` : "Your party"} • {game.name}</Text><Text style={s.caption}>{party?.status || (demo ? "In match • 18 min" : `${party?.members.length}/${party?.capacity} players`)}</Text></View>
       </View>
       <View style={[styles.row, { gap: 6 }]}>
-        <View style={[styles.row, { gap: 0 }]}>{demo ? faces.map((source, i) => <Image key={i} source={source} style={[s.avatar, i < 3 && { marginRight: -4 }]} />) : party?.members.slice(0, 4).map((member, i) => <View key={member.id} style={i < 3 ? { marginRight: -4 } : undefined}><Avatar name={member.name} size={24} /></View>)}</View>
-        {(demo || (party?.members.length || 0) > 4) && <View style={s.more}><Text style={s.moreText}>+{demo ? 1 : party!.members.length - 4}</Text></View>}
+        <View style={[styles.row, { gap: 0 }]}>{exampleFaces ? exampleFaces.map((source, i) => <Image key={i} source={source} style={[s.avatar, i < exampleFaces.length - 1 && { marginRight: -4 }]} />) : party?.members.slice(0, 4).map((member, i) => <View key={member.id} style={i < 3 ? { marginRight: -4 } : undefined}><Avatar name={member.name} source={demo && member.id === "harry" || demo && member.id === "toad" ? require("../assets/figma/97223.png") : undefined} size={24} /></View>)}</View>
+        {((demo && (!party || party.id === "team-korea")) || (party?.members.length || 0) > 4) && <View style={s.more}><Text style={s.moreText}>+{demo && (!party || party.id === "team-korea") ? 1 : party!.members.length - 4}</Text></View>}
       </View>
     </View>
     <DesignIcon name="editNext" size={24} />

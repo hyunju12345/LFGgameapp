@@ -87,7 +87,7 @@ export default function Chat() {
   }
   if (!party || !joined)
     return (
-      <Screen title="Party chat" onBack={() => router.replace("/chats")}>
+      <Screen title="Party chat" onBack={() => router.replace("/games")}>
         <Empty
           title="Join a party to chat"
           detail="Only party members can read or send messages."
@@ -99,7 +99,7 @@ export default function Chat() {
       </Screen>
     );
   return (
-    <Screen title={party.name} scroll={false} onBack={() => router.replace("/chats")}>
+    <Screen title={party.name} scroll={false} onBack={() => router.replace("/games")}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={{ flex: 1 }}

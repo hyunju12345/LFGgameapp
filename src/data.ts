@@ -11,6 +11,7 @@ export type Player = {
   incoming?: boolean;
   match?: number;
   reason?: string;
+  compatibility?: { label: string; status: "match" | "partial" | "different" }[];
 };
 export type Party = {
   id: string;
@@ -22,6 +23,9 @@ export type Party = {
   capacity: number;
   is_open: boolean;
   invited?: boolean;
+  status?: string;
+  active?: boolean;
+  gameInfo?: CatalogueGame;
   members: Player[];
 };
 export type Message = {
@@ -78,6 +82,7 @@ export const libraryDefaults: Game[] = [games[0],
   { id: "steam:467360", steamId: 467360, name: "Off-peak", image: require("../assets/figma/ce94e.png"), modes: ["Default"] },
 ];
 const catalogue = new Map<string, Game>([...games, ...libraryDefaults].map(game => [game.id, game]));
+catalogue.set("mario-kart", { id: "mario-kart", name: "Mario Kart", image: require("../assets/figma/b14d6.png"), modes: ["Grand Prix", "VS Race", "Battle"] });
 export function registerGames(items: CatalogueGame[]): Game[] {
   return items.map(item => {
     const existing = catalogue.get(item.id);

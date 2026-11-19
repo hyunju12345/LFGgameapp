@@ -1,13 +1,15 @@
 import React, { useRef, useState } from "react";
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View, useWindowDimensions } from "react-native";
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { SvgUri } from "react-native-svg";
 import { Asset } from "expo-asset";
 import { GlassSurface, OnlineFriendsPicker, invitePhotos } from "../invite-picker";
 import { addDraftInvitee, createInviteDraft, useDraftInvitees } from "../party-invite-draft";
+import { savePreviewParty } from "../party-preview";
+import { PartyGamePicker } from "../party-game-picker";
 import { Party, Player } from "../data";
-import { PreviewStatusBar } from "../figma-screens";
+import { DesignIcon, DesignSwitch, PreviewStatusBar } from "../figma-screens";
 import { useResolvedGame } from "../game-library";
 import { useStore } from "../store";
 import { Avatar, ErrorText, Field, GameBanner, colors, styles } from "../ui";
@@ -38,7 +40,9 @@ export default function CreateParty() {
   const [onlinePicker, setOnlinePicker] = useState(false);
   const [popover, setPopover] = useState({ left: 20, top: 300 });
   const params = useLocalSearchParams<{ game: string }>();
-  const { game, error: gameError } = useResolvedGame(params.game);
+  const [selectedGame, setSelectedGame] = useState(params.game || "");
+  const [gamePicker, setGamePicker] = useState(false);
+  const { game, error: gameError } = useResolvedGame(selectedGame);
   const [mode, setMode] = useState(game.modes[0]);
   const [name, setName] = useState("");
   const [capacity, setCapacity] = useState(5);
@@ -92,8 +96,19 @@ export default function CreateParty() {
   }
 
   async function submit() {
-    if (demo) { router.push("/auth"); return; }
     if (busy) return;
+    if (name.trim().length < 2) { setError("Enter a party name with at least 2 characters."); return; }
+    if (!selectedGame) { setError("Choose a game to play."); return; }
+    if (demo) {
+      setBusy(true); setError("");
+      try {
+        const party: Party = { id: `created-${Date.now()}`, owner: data.user.id, name: name.trim(), game: game.id, gameInfo: { id: game.id, name: game.name, modes: game.modes, steamId: game.steamId, imageUrl: typeof game.image === "object" && "uri" in game.image ? game.image.uri : undefined }, mode, tags, capacity, is_open: open, active: true, status: "Ready to play", members: [...baseMembers.map(member => ({ id: member.id === "me" ? data.user.id : member.id, name: member.id === "me" ? data.user.name : member.name, game: game.id, style: "Chill", rank: "Casual", online: true })), ...invited] };
+        await savePreviewParty(party);
+        router.replace(`/party/${party.id}`);
+      } catch (e) { setError((e as Error).message); }
+      finally { setBusy(false); }
+      return;
+    }
     setBusy(true); setError("");
     try {
       const party = await request<Party>("/parties", "POST", {
@@ -109,7 +124,7 @@ export default function CreateParty() {
     <SafeAreaView edges={["top", "bottom"]} style={styles.page}>
       <PreviewStatusBar />
       <View style={s.header}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.canGoBack() ? router.back() : router.replace("/")} style={s.back}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.replace("/games")} style={s.back}>
           <View style={{ transform: [{ rotate: "180deg" }] }}><SvgUri uri={chevron} width={36} height={36} /></View>
         </Pressable>
         <Text style={styles.title}>Make party</Text>
@@ -122,7 +137,9 @@ export default function CreateParty() {
           </View>
           <View style={s.section}>
             <Text style={s.label}>Game to play</Text>
-            <GameBanner game={game.id} height={160} />
+            <Pressable accessibilityRole="button" accessibilityLabel="Choose game to play" onPress={() => setGamePicker(true)}>
+              {selectedGame ? <GameBanner game={game.id} height={160} /> : <View style={s.gameSearch}><DesignIcon name="search" size={16} /><Text style={s.gameSearchText}>Search</Text></View>}
+            </Pressable>
           </View>
           <View style={s.section}>
             <View style={styles.spread}>
@@ -158,7 +175,7 @@ export default function CreateParty() {
             <Text style={s.label}>Party visibility</Text>
             <View style={s.visibility}>
               <View style={{ flex: 1, gap: 4 }}><Text style={s.mapName}>Open party</Text><Text style={s.description}>Let other players find your party and request to join.</Text></View>
-              <Switch accessibilityLabel="Open party" value={open} onValueChange={setOpen} trackColor={{ true: colors.brand, false: "#b7b7b7" }} thumbColor="white" style={{ transform: [{ scale: .8 }] }} />
+              <DesignSwitch label="Open party" value={open} onChange={setOpen} />
             </View>
           </View>
         </View>
@@ -199,6 +216,7 @@ export default function CreateParty() {
           </GlassSurface>
         </View>
       </Modal>
+      <PartyGamePicker visible={gamePicker} onClose={() => setGamePicker(false)} onSelect={next => { setSelectedGame(next.id); setMode(next.modes[0]); }} />
       <OnlineFriendsPicker visible={onlinePicker} players={onlineFriends} selected={invited} full={invited.length >= limit} onClose={() => setOnlinePicker(false)} onAdd={player => addDraftInvitee(draft, player, limit)} />
 
     </SafeAreaView>
@@ -206,6 +224,8 @@ export default function CreateParty() {
 }
 
 const s = StyleSheet.create({
+  gameSearch: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: colors.field, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 8, minHeight: 38 },
+  gameSearchText: { color: colors.muted, fontFamily: "Pretendard-Bold", fontSize: 16, lineHeight: 22 },
   invitePopover: { position: "absolute", width: 184, paddingHorizontal: 16, paddingVertical: 8 },
   inviteOption: { paddingVertical: 8 },
   inviteText: { color: "white", fontFamily: "Pretendard-Regular", fontSize: 16, lineHeight: 19 },

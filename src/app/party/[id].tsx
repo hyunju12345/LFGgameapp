@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useStore } from "../../store";
+import { savePreviewParty, usePreviewParties } from "../../party-preview";
 import { avatars } from "../../data";
 import {
   Avatar,
@@ -17,7 +18,8 @@ import {
 export default function PartyDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data, demo, request, refresh } = useStore();
-  const p = data.parties.find((p) => p.id === id);
+  const previewParties = usePreviewParties();
+  const p = (demo ? [...previewParties, ...data.parties] : data.parties).find((p) => p.id === id);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   if (!p)
@@ -25,15 +27,18 @@ export default function PartyDetail() {
       <Screen title="Party">
         <Empty
           title="Party unavailable"
-          detail="This party may have closed. Find another from the Games tab."
+          detail="This party may have closed. Find another from the Party tab."
         />
-        <Button title="Find a game" onPress={() => router.replace("/games")} />
+        <Button title="View parties" onPress={() => router.replace("/games")} />
       </Screen>
     );
   const joined = p.members.some((m) => m.id === data.user.id);
   async function join() {
     if (demo) {
-      router.push({ pathname: "/preview-conversation", params: { id: "party" } });
+      setBusy(true); setError("");
+      try { await savePreviewParty({ ...p!, active: true, status: "Ready to play", members: [...p!.members, data.user] }); }
+      catch (e) { setError((e as Error).message); }
+      finally { setBusy(false); }
       return;
     }
     setBusy(true);
@@ -48,7 +53,7 @@ export default function PartyDetail() {
     }
   }
   return (
-    <Screen title={demo ? "Join May’s game" : p.name}>
+    <Screen title={p.name} onBack={() => router.replace("/games")}>
       <View style={styles.row}>
         <Avatar
           name={p.members[0]?.name || "Raina"}
@@ -60,7 +65,7 @@ export default function PartyDetail() {
           <Text style={styles.title}>{p.members[0]?.name}</Text>
           <Text style={styles.muted}>
             {demo
-              ? "In match • 18 min"
+              ? p.status || "In match • 18 min"
               : `${p.members.length}/${p.capacity} players · ${p.is_open ? "Open party" : "Private party"}`}
           </Text>
         </View>
@@ -126,7 +131,7 @@ export default function PartyDetail() {
       {joined ? (
         <Button
           title="Open party chat"
-          onPress={() => router.push({ pathname: "/chat", params: { id } })}
+          onPress={() => router.push({ pathname: demo ? "/preview-conversation" : "/chat", params: { id: demo ? `party:${p.id}` : id } })}
         />
       ) : (
         <Button
@@ -139,7 +144,7 @@ export default function PartyDetail() {
         />
       )}
       <Text style={[styles.muted, { textAlign: "center" }]}>
-        PartyUp helps you coordinate. Launch the game separately to play.
+        Tomoru helps you coordinate. Launch the game separately to play.
       </Text>
     </Screen>
   );

@@ -3,24 +3,18 @@ import { Image, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useStore } from "../../store";
-import { gameById } from "../../data";
 import { Button, Empty, Field, colors, styles } from "../../ui";
 import { DesignIcon, PreviewStatusBar, design } from "../../figma-screens";
 import { getPreviewConversation, previewConversations, usePreviewMessages } from "../../conversation-preview";
 
 export default function Chats() {
-  const { data, demo } = useStore();
+  const { demo } = useStore();
   const sentMessages = usePreviewMessages();
   const [query, setQuery] = useState("");
-  const previewRows = [...previewConversations, ...Object.keys(sentMessages)
-    .filter(id => !previewConversations.some(row => row.id === id))
+  const previewRows = [...previewConversations.filter(row => row.id !== "party"), ...Object.keys(sentMessages)
+    .filter(id => !id.startsWith("party:") && !previewConversations.some(row => row.id === id))
     .map(getPreviewConversation).filter((row): row is NonNullable<typeof row> => !!row)];
-  const rows = demo ? previewRows.map(row => ({ ...row, preview: sentMessages[row.id]?.at(-1)?.body || row.preview })) : data.parties
-    .filter(p => p.members.some(m => m.id === data.user.id))
-    .map(p => ({
-      id: p.id, name: p.name, count: p.members.length, preview: gameById(p.game).name,
-      image: gameById(p.game).image, time: "", unread: 0,
-    }));
+  const rows = demo ? previewRows.filter(row => row.id !== "party").map(row => ({ ...row, preview: sentMessages[row.id]?.at(-1)?.body || row.preview })) : [];
   const filtered = rows.filter(row => row.name.toLowerCase().includes(query.trim().toLowerCase()));
   return (
     <SafeAreaView edges={["top"]} style={styles.page}>

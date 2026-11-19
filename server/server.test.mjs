@@ -91,6 +91,9 @@ test("two real accounts: friendship, private data, party capacity, chat, persist
   assert.equal(state.users.find((u) => u.id === a.data.user.id).incoming, true);
   await req("/friends", bt, "POST", { userId: a.data.user.id });
   state = (await req("/bootstrap", at)).data;
+  assert.equal(state.users[0].compatibility.length, 5);
+  assert.ok(state.users[0].compatibility.every(item => ["match", "partial", "different"].includes(item.status)));
+  assert.ok(state.users[0].compatibility.some(item => item.label === "Voice chat preference not shared yet" && item.status === "partial"));
   assert.equal(
     state.users.find((u) => u.id === b.data.user.id).friendStatus,
     "accepted",
