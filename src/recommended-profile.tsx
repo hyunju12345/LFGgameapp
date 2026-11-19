@@ -60,7 +60,7 @@ export function RecommendedProfile({ player }: { player: Player }) {
               <LinearGradient colors={["rgba(255,255,255,0)", "rgba(255,255,255,.85)", "rgba(255,255,255,0)"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
             </Animated.View>
           </Animated.View></View>
-          <MatchDetails player={player} demo={demo} />
+          <MatchDetails player={player} />
         </LinearGradient>
         <View style={s.actions}>
           <Pressable accessibilityRole="button" onPress={() => demo ? router.push({ pathname: "/preview-conversation", params: { id: player.id } }) : setError("Join a shared party to chat.")} style={[s.action, s.message]}><Text style={s.actionText}>Message</Text></Pressable>
@@ -70,7 +70,7 @@ export function RecommendedProfile({ player }: { player: Player }) {
       {!!error && <ErrorText message={error} />}
       <View style={{ gap: 24 }}>
         <View style={{ gap: 16 }}><Text style={s.title}>Play preferences</Text>
-          <View style={s.tags}>{(demo ? ["Chill", "Every night", "For fun", "Voice chat"] : [player.style]).map(tag => <View key={tag} style={[s.tag, { minWidth: ({ Chill: 60, "Every night": 99, "For fun": 74, "Voice chat": 94 } as Record<string, number>)[tag] }]}><Text style={s.tagText}>{tag}</Text></View>)}</View>
+          <View style={s.tags}>{(player.playPreferences || (demo ? ["Chill", "Every night", "For fun", "Voice chat"] : [player.style])).map(tag => <View key={tag} style={[s.tag, { minWidth: ({ Chill: 60, "Every night": 99, "For fun": 74, "Voice chat": 94 } as Record<string, number>)[tag] }]}><Text style={s.tagText}>{tag}</Text></View>)}</View>
         </View>
         <View style={{ gap: 16 }}>
           <View style={[styles.spread, { paddingHorizontal: 4 }]}><Text style={[s.title, { paddingHorizontal: 0 }]}>Play history</Text>

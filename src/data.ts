@@ -1,3 +1,4 @@
+import { previewMatchFor } from "./preview-match";
 import type { ImageSourcePropType } from "react-native";
 export type Player = {
   friendCode?: string;
@@ -11,6 +12,7 @@ export type Player = {
   incoming?: boolean;
   match?: number;
   reason?: string;
+  playPreferences?: string[];
   compatibility?: { label: string; status: "match" | "partial" | "different" }[];
 };
 export type Party = {
@@ -138,16 +140,10 @@ export const preview: Bootstrap = {
     player("may", "May"),
     player("jessica", "Jessica", "valorant"),
     player("lemon", "Lemon", "overwatch"),
-    ...["Alex", "Hailey", "Eric", "Phill", "Luke", "Gloria"].map((name, i) => ({
+    ...["Alex", "Hailey", "Eric", "Phill", "Luke", "Gloria"].map(name => ({
       ...player(name.toLowerCase(), name),
       friendStatus: null,
-      match: [92, 88, 73, 73, 73, 73][i],
-      reason:
-        i === 0
-          ? "Similar rank • Casual play"
-          : i === 1
-            ? "Similar rank • Same goals"
-            : "Casual play • Same map",
+      ...previewMatchFor(name.toLowerCase()),
     })),
   ],
   parties: [

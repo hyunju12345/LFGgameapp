@@ -37,7 +37,7 @@
     "web": "expo start --web",
     "dev": "node scripts/dev.mjs",
     "server": "node server/server.mjs",
-    "test": "node --test server/server.test.mjs",
+    "test": "node --test server/*.test.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
     "export": "expo export --platform all",
