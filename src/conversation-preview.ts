@@ -53,3 +53,10 @@ export function sendPreviewMessage(id: string, body: string) {
   sentMessages = { ...sentMessages, [id]: [...(sentMessages[id] || []), { body, time: "Now" }] };
   sentListeners.forEach(listener => listener());
 }
+
+export function clearPreviewMessages(id: string) {
+  const next = { ...sentMessages };
+  delete next[id];
+  sentMessages = next;
+  sentListeners.forEach(listener => listener());
+}

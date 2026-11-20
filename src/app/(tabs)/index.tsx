@@ -70,7 +70,7 @@ export default function Home() {
         <View style={home.divider}><SvgUri uri={Asset.fromModule(divider).uri} width={1} height={370} style={{ position: "absolute", left: 184.5, top: -185, transform: [{ rotate: "90deg" }] }} /></View>
       </View>
       <View style={home.main}>
-        <ActivePartyCard party={demo ? previewParties.find(p => p.active) || previewParties[0] : mine.find(p => p.id === data.currentPartyId) || mine[0]} demo={demo} />
+        <ActivePartyCard party={demo ? previewParties.find(p => p.active && p.members.some(member => member.id === data.user.id)) : mine.find(p => p.id === data.currentPartyId) || mine[0]} demo={demo} />
         {loading && <ActivityIndicator color={colors.brand} />}
         {Boolean(error) && <Pressable onPress={() => void refresh()}><ErrorText message={error + " Tap to retry."} /></Pressable>}
         <View style={home.section}>

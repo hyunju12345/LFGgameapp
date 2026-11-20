@@ -16,3 +16,8 @@ export function addDraftInvitee(id: string, player: Player, limit: number) {
   drafts.set(id, [...current, player]);
   listeners.forEach(listener => listener());
 }
+
+export function clearInviteDraft(id: string) {
+  drafts.delete(id);
+  listeners.forEach(listener => listener());
+}

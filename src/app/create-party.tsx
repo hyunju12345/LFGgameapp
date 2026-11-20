@@ -5,8 +5,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { SvgUri } from "react-native-svg";
 import { Asset } from "expo-asset";
 import { GlassSurface, OnlineFriendsPicker, invitePhotos } from "../invite-picker";
-import { addDraftInvitee, createInviteDraft, useDraftInvitees } from "../party-invite-draft";
-import { savePreviewParty } from "../party-preview";
+import { addDraftInvitee, clearInviteDraft, createInviteDraft, useDraftInvitees } from "../party-invite-draft";
+import { deletePreviewParty, savePreviewParty } from "../party-preview";
+import { PartyOptions } from "../party-options";
 import { PartyGamePicker } from "../party-game-picker";
 import { Party, Player } from "../data";
 import { DesignIcon, DesignSwitch, PreviewStatusBar } from "../figma-screens";
@@ -31,7 +32,7 @@ const chevron = Asset.fromModule(require("../../assets/figma/42bbd.svg")).uri;
 const dropdown = Asset.fromModule(require("../../assets/figma/7209e.svg")).uri;
 const plus = Asset.fromModule(require("../../assets/figma/c54d1.svg")).uri;
 
-export default function CreateParty() {
+export default function CreateParty({ existingParty }: { existingParty?: Party } = {}) {
   const { width, height } = useWindowDimensions();
   const heldSpot = useRef(false);
   const memberAnchor = useRef<React.ComponentRef<typeof View>>(null);
@@ -40,14 +41,14 @@ export default function CreateParty() {
   const [onlinePicker, setOnlinePicker] = useState(false);
   const [popover, setPopover] = useState({ left: 20, top: 300 });
   const params = useLocalSearchParams<{ game: string }>();
-  const [selectedGame, setSelectedGame] = useState(params.game || "");
+  const [selectedGame, setSelectedGame] = useState(existingParty?.game || params.game || "");
   const [gamePicker, setGamePicker] = useState(false);
   const { game, error: gameError } = useResolvedGame(selectedGame);
-  const [mode, setMode] = useState(game.modes[0]);
-  const [name, setName] = useState("");
-  const [capacity, setCapacity] = useState(5);
-  const [open, setOpen] = useState(false);
-  const [tags, setTags] = useState(["Chill", "For fun", "Voice chat"]);
+  const [mode, setMode] = useState(existingParty?.mode || game.modes[0]);
+  const [name, setName] = useState(existingParty?.name || "");
+  const [capacity, setCapacity] = useState(existingParty?.capacity || 5);
+  const [open, setOpen] = useState(existingParty?.is_open || false);
+  const [tags, setTags] = useState(existingParty?.tags || ["Chill", "For fun", "Voice chat"]);
   const [menu, setMenu] = useState<"map" | "invite" | "remove-spot" | "tags" | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -76,11 +77,11 @@ export default function CreateParty() {
     setCustomTag("");
   }
   const { data, demo, request, refresh } = useStore();
-  const baseMembers = demo
+  const baseMembers = existingParty ? [...existingParty.members].sort((a, b) => Number(b.id === data.user.id) - Number(a.id === data.user.id)).map(member => ({ id: member.id === data.user.id ? "me" : member.id, name: member.id === data.user.id ? "Me" : member.name, image: demo ? member.id === data.user.id ? require("../../assets/figma/0ae32.png") : member.id === "ian" ? require("../../assets/figma/1d51b.png") : member.id === "martin" ? require("../../assets/figma/fc5bb.png") : invitePhotos[member.name] : undefined })) : demo
     ? [{ id: "me", name: "Me", image: require("../../assets/figma/0ae32.png") }, { id: "ian", name: "Ian", image: require("../../assets/figma/1d51b.png") }, { id: "martin", name: "Martin", image: require("../../assets/figma/fc5bb.png") }]
     : [{ id: "me", name: "Me", image: undefined }];
 
-  const members = [...baseMembers, ...invited.map(player => ({ id: player.id, name: player.name, image: invitePhotos[player.name] }))];
+  const members = [...baseMembers, ...invited.filter(player => !existingParty?.members.some(member => member.id === player.id)).map(player => ({ id: player.id, name: player.name, image: invitePhotos[player.name] }))];
   const limit = capacity - baseMembers.length;
   const onlineFriends: Player[] = demo
     ? [...data.users.filter(p => p.friendStatus === "accepted").map((p, i) => ({ ...p, reason: ["Similar rank • Casual play", "Similar rank • Same goals", "Casual play • Same map"][i] })),
@@ -102,8 +103,9 @@ export default function CreateParty() {
     if (demo) {
       setBusy(true); setError("");
       try {
-        const party: Party = { id: `created-${Date.now()}`, owner: data.user.id, name: name.trim(), game: game.id, gameInfo: { id: game.id, name: game.name, modes: game.modes, steamId: game.steamId, imageUrl: typeof game.image === "object" && "uri" in game.image ? game.image.uri : undefined }, mode, tags, capacity, is_open: open, active: true, status: "Ready to play", members: [...baseMembers.map(member => ({ id: member.id === "me" ? data.user.id : member.id, name: member.id === "me" ? data.user.name : member.name, game: game.id, style: "Chill", rank: "Casual", online: true })), ...invited] };
-        await savePreviewParty(party);
+        const party: Party = { id: existingParty?.id || `created-${Date.now()}`, owner: data.user.id, name: name.trim(), game: game.id, gameInfo: { id: game.id, name: game.name, modes: game.modes, steamId: game.steamId, imageUrl: typeof game.image === "object" && "uri" in game.image ? game.image.uri : undefined }, mode, tags, capacity, is_open: open, active: existingParty?.active ?? true, status: existingParty?.status || "Ready to play", members: [...(existingParty?.members || baseMembers.map(member => ({ id: member.id === "me" ? data.user.id : member.id, name: member.id === "me" ? data.user.name : member.name, game: game.id, style: "Chill", rank: "Casual", online: true }))), ...invited] };
+        await savePreviewParty({ ...party, members: [...new Map(party.members.map(member => [member.id, member])).values()] });
+        clearInviteDraft(draft);
         router.replace(`/party/${party.id}`);
       } catch (e) { setError((e as Error).message); }
       finally { setBusy(false); }
@@ -111,13 +113,23 @@ export default function CreateParty() {
     }
     setBusy(true); setError("");
     try {
-      const party = await request<Party>("/parties", "POST", {
+      const party = await request<Party>(existingParty ? `/parties/${existingParty.id}` : "/parties", existingParty ? "PATCH" : "POST", {
         name, game: game.id, mode, tags, capacity, is_open: open, invitees: invited.map(player => player.id),
       });
+      clearInviteDraft(draft);
       await refresh();
       router.replace(`/party/${party.id}`);
     } catch (e) { setError((e as Error).message); }
     finally { setBusy(false); }
+  }
+
+  async function remove() {
+    if (existingParty) {
+      if (demo) await deletePreviewParty(existingParty.id, data.user.id);
+      else { await request(`/parties/${existingParty.id}`, "DELETE"); await refresh(); }
+    }
+    clearInviteDraft(draft);
+    router.replace("/games");
   }
 
   return (
@@ -127,7 +139,8 @@ export default function CreateParty() {
         <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.replace("/games")} style={s.back}>
           <View style={{ transform: [{ rotate: "180deg" }] }}><SvgUri uri={chevron} width={36} height={36} /></View>
         </Pressable>
-        <Text style={styles.title}>Make party</Text>
+        <Text style={[styles.title, { flex: 1 }]}>Make party</Text>
+        <PartyOptions disabled={busy} onOpenChat={existingParty ? () => router.push({ pathname: demo ? "/preview-conversation" : "/chat", params: { id: demo ? `party:${existingParty.id}` : existingParty.id } }) : undefined} onDelete={remove} title={existingParty ? "Delete party?" : "Discard this party?"} detail={existingParty ? "This party and its party conversation will be deleted. Other group chats will stay." : "Your party name, game selection and invited players will be discarded."} />
       </View>
       <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.content}>
         <View style={s.fields}>
@@ -151,7 +164,7 @@ export default function CreateParty() {
                 <View><Avatar name={index === 0 ? data.user.name : member.name} source={member.image} size={48} />{index === 0 && <View style={s.crown}><SvgUri uri={crown} width={13} height={10} /></View>}</View>
                 <Text style={s.memberName}>{member.name}</Text>
               </View>)}
-              {Array.from({ length: capacity - members.length }, (_, index) => <Pressable key={`invite-${index}`} accessibilityRole="button" accessibilityLabel="Invite player" accessibilityHint="Tap to invite. Hold to remove this spot." delayLongPress={500} onPressIn={() => { heldSpot.current = false; }} onLongPress={() => { heldSpot.current = true; openMemberMenu("remove-spot"); }} onPress={() => { if (!heldSpot.current) openMemberMenu("invite"); }} style={s.member}>
+              {Array.from({ length: Math.max(0, capacity - members.length) }, (_, index) => <Pressable key={`invite-${index}`} accessibilityRole="button" accessibilityLabel="Invite player" accessibilityHint="Tap to invite. Hold to remove this spot." delayLongPress={500} onPressIn={() => { heldSpot.current = false; }} onLongPress={() => { heldSpot.current = true; openMemberMenu("remove-spot"); }} onPress={() => { if (!heldSpot.current) openMemberMenu("invite"); }} style={s.member}>
                 <View style={s.inviteCircle}><SvgUri uri={plus} width={16} height={16} /></View>
                 <Text style={[s.memberName, { color: colors.muted }]}>Invite</Text>
               </Pressable>)}
@@ -180,7 +193,7 @@ export default function CreateParty() {
           </View>
         </View>
         <ErrorText message={error || gameError} />
-        <Pressable accessibilityRole="button" disabled={busy} onPress={() => void submit()} style={s.submit}>{busy ? <ActivityIndicator color="white" /> : <Text style={s.submitText}>Make party</Text>}</Pressable>
+        <Pressable accessibilityRole="button" disabled={busy} onPress={() => void submit()} style={s.submit}>{busy ? <ActivityIndicator color="white" /> : <Text style={s.submitText}>{existingParty ? "Save changes" : "Make party"}</Text>}</Pressable>
       </ScrollView>
       <Modal visible={menu === "map" || menu === "tags"} transparent animationType="fade" onRequestClose={() => setMenu(null)}>
         <Pressable style={s.overlay} onPress={() => setMenu(null)}>

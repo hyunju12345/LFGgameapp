@@ -1,6 +1,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
+import { clearPreviewMessages } from "./conversation-preview";
 import { Party, Player, preview, registerGames } from "./data";
 const member = (id: string, name: string): Player => ({ id, name, game: "lol", style: "Chill", rank: "Casual", online: true });
 const squad = [preview.user, member("ian", "Ian"), member("martin", "Martin"), preview.users[1], preview.users[0]];
@@ -11,7 +12,8 @@ export const demoParties: Party[] = [
 ];
 registerGames([{ id: "mario-kart", name: "Mario Kart", modes: ["Grand Prix", "VS Race", "Battle"] }]);
 const key = "tomoru.preview.parties.v1";
-let saved: Party[] = [];
+type StoredParty = Party & { deleted?: boolean };
+let saved: StoredParty[] = [];
 let hydrated = false;
 const listeners = new Set<() => void>();
 function subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; }
@@ -34,11 +36,9 @@ async function hydrate() {
 export function usePreviewParties() {
   const created = useSyncExternalStore(subscribe, snapshot, snapshot);
   useEffect(() => { void hydrate(); }, []);
-  return [...created, ...demoParties.filter(party => !created.some(item => item.id === party.id))];
+  return [...created.filter(party => !party.deleted), ...demoParties.filter(party => !created.some(item => item.id === party.id))];
 }
-export async function savePreviewParty(party: Party) {
-  await hydrate();
-  const next = [party, ...saved.filter(item => item.id !== party.id)];
+async function persist(next: StoredParty[]) {
   const value = JSON.stringify(next);
   if (Platform.OS === "web") localStorage.setItem(key, value);
   else {
@@ -48,4 +48,16 @@ export async function savePreviewParty(party: Party) {
   }
   saved = next;
   listeners.forEach(listener => listener());
+}
+export async function savePreviewParty(party: Party) {
+  await hydrate();
+  await persist([party, ...saved.filter(item => item.id !== party.id)]);
+}
+export async function deletePreviewParty(id: string, owner: string) {
+  await hydrate();
+  const party = [...saved, ...demoParties].find(item => item.id === id);
+  if (!party || party.owner !== owner) throw new Error("Only the party owner can delete this party.");
+  await persist([{ ...party, deleted: true }, ...saved.filter(item => item.id !== id)]);
+  clearPreviewMessages(`party:${id}`);
+  if (id === "team-korea") clearPreviewMessages("party");
 }

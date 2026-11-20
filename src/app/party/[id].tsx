@@ -1,3 +1,4 @@
+import CreateParty from "../create-party";
 import React, { useState } from "react";
 import { Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
@@ -32,6 +33,7 @@ export default function PartyDetail() {
         <Button title="View parties" onPress={() => router.replace("/games")} />
       </Screen>
     );
+  if (p.owner === data.user.id) return <CreateParty key={p.id} existingParty={p} />;
   const joined = p.members.some((m) => m.id === data.user.id);
   async function join() {
     if (demo) {

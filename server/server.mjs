@@ -360,6 +360,29 @@ async function dispatch(req, b, url) {
   if (m) {
     const p = one("SELECT * FROM parties WHERE id=?", m[1]);
     if (!p) fail(404, "Party no longer exists.");
+    if (!m[2] && method === "DELETE") {
+      if (p.owner !== u.id) fail(403, "Only the party owner can delete this party.");
+      run("DELETE FROM parties WHERE id=?", p.id);
+      return { ok: true };
+    }
+    if (!m[2] && method === "PATCH") {
+      if (p.owner !== u.id) fail(403, "Only the party owner can edit this party.");
+      const name = text(b.name, 2, 50, "Party name");
+      if (!games.has(b.game) && !one("SELECT 1 FROM game_catalog WHERE id=?", b.game)) fail(400, "Choose a game from your library.");
+      const mode = text(b.mode, 2, 50, "Game mode");
+      const size = one("SELECT COUNT(*) AS n FROM members WHERE party_id=?", p.id).n;
+      if (!Number.isInteger(b.capacity) || b.capacity < Math.max(1, size) || b.capacity > 10) fail(400, "Keep enough spots for current members (up to 10).");
+      if (!Array.isArray(b.tags) || b.tags.length > 5 || b.tags.some(tag => typeof tag !== "string" || tag.length > 30)) fail(400, "Choose up to 5 playstyles.");
+      const invitees = b.invitees ?? [];
+      if (!Array.isArray(invitees) || new Set(invitees).size !== invitees.length || invitees.some(id => typeof id !== "string" || id === u.id || !one("SELECT 1 FROM users WHERE id=?", id))) fail(400, "Choose valid players.");
+      const pending = new Set([...all("SELECT user_id FROM party_invites WHERE party_id=?", p.id).map(row => row.user_id), ...invitees].filter(id => !member(p.id, id)));
+      if (pending.size > b.capacity - size) fail(400, "Keep enough spots for invited players.");
+      transaction(() => {
+        run("UPDATE parties SET name=?,game=?,mode=?,tags=?,capacity=?,is_open=? WHERE id=?", name, b.game, mode, JSON.stringify(b.tags), b.capacity, b.is_open ? 1 : 0, p.id);
+        invitees.filter(id => !member(p.id, id)).forEach(id => run("INSERT OR IGNORE INTO party_invites VALUES(?,?)", p.id, id));
+      });
+      return partyView(one("SELECT * FROM parties WHERE id=?", p.id));
+    }
     if (m[2] === "join" && method === "POST") {
       transaction(() => {
         if (member(p.id, u.id)) { run("INSERT OR REPLACE INTO current_parties VALUES(?,?)", u.id, p.id); return; }
@@ -415,7 +438,7 @@ export const server = http.createServer(async (req, res) => {
     process.env.WEB_ORIGIN || "http://localhost:8081",
   );
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PATCH,OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS");
   res.setHeader("X-Content-Type-Options", "nosniff");
   if (req.method === "OPTIONS") {
     res.writeHead(204);

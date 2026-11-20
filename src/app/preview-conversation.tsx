@@ -18,16 +18,17 @@ export default function PreviewConversation() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { demo } = useStore();
   const previewParties = usePreviewParties();
-  const activeParty = previewParties.find(party => `party:${party.id}` === id);
+  const activeParty = previewParties.find(party => `party:${party.id}` === id || (id === "party" && party.id === "team-korea"));
+  const missingParty = (id === "party" || id?.startsWith("party:")) && !activeParty;
   const party = id === "party" || Boolean(activeParty);
-  const thread = activeParty ? { id, name: activeParty.name, image: gameById(activeParty.game).image, preview: "", time: "Now" } : getPreviewConversation(id || "");
+  const thread = activeParty ? { id, name: activeParty.name, image: gameById(activeParty.game).image, preview: "", time: "Now" } : missingParty ? undefined : getPreviewConversation(id || "");
   const count = id === "team" ? 6 : undefined;
   const transcript = id === "party" || id === "team";
   const scroll = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const [draft, setDraft] = useState("");
   const sent: PreviewMessage[] = usePreviewMessages()[id || ""] || [];
   const [menu, setMenu] = useState(false);
-  const messages: PreviewMessage[] = transcript ? id === "team" ? groupMessages : teamMessages : thread?.preview
+  const messages: PreviewMessage[] = transcript && !missingParty ? id === "team" ? groupMessages : teamMessages : thread?.preview
     ? [{ body: thread.preview, time: thread.time, name: thread.name, image: thread.image }]
     : [];
 
@@ -75,6 +76,7 @@ export default function PreviewConversation() {
             </React.Fragment>
           );
         })}
+        {missingParty && <Empty title="Party unavailable" detail="This party has been deleted or is no longer available." />}
         {!demo && <Empty title="No conversation yet" detail="Send a message to start a conversation." />}
       </ScrollView>
       {demo && thread && (

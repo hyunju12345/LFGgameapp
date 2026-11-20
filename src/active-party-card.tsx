@@ -9,7 +9,7 @@ import { DesignIcon } from "./figma-screens";
 import { Party, gameById } from "./data";
 const faces = [require("../assets/figma/a6ea2.png"), require("../assets/figma/08dd4.png"), require("../assets/figma/dfbf2.png"), require("../assets/figma/05e26.png")];
 export function ActivePartyCard({ party, demo = false, compact = false }: { party?: Party; demo?: boolean; compact?: boolean }) {
-  if (!demo && !party) return null;
+  if (!party) return null;
   const game = gameById(party?.game || "lol");
   const isActive = party?.active ?? !compact;
   const name = party?.name || "Team Korea";
